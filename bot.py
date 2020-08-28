@@ -6,65 +6,129 @@ TOKEN = 'NjUzODk0NDMwNTM2NzYxMzQ0.Xe9opQ.XxkhQLgmzI_-GnNLbCyNrkZKoZg'
 
 client = discord.Client()
 
-def GetMarketOrders(request):
+async def GetMarketPerrinWeapons():
+    MaxTops = 4
+    TopBuyOrders = []
+    TopSellOrders = []
+    ResultsString = ""
+
+    Embed, ReturnString, Buys, Sells = await GetMarketOrders("secura_dual_cestra")
+    ResultsString += ReturnString
+    for i in range(len(Buys[0])):
+        TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
+    for i in range(len(Sells[0])):
+        TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
+
+    Embed, ReturnString, Buys, Sells = await GetMarketOrders("secura_lecta")
+    ResultsString += ReturnString
+    for i in range(len(Buys[0])):
+        TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
+    for i in range(len(Sells[0])):
+        TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
+
+    Embed, ReturnString, Buys, Sells = await GetMarketOrders("secura_penta")
+    ResultsString += ReturnString
+    for i in range(len(Buys[0])):
+        TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
+    for i in range(len(Sells[0])):
+        TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
+
+    SortedTopBuyOrders = sorted(TopBuyOrders, key=lambda x: x[1], reverse=True)
+    SortedTopSellOrders = sorted(TopSellOrders, key=lambda x: x[1])
+
+    if len(SortedTopBuyOrders) > MaxTops:
+        for i in range(MaxTops):
+            ResultsString += SortedTopBuyOrders[i][0] + " buys for **" + str(int(SortedTopBuyOrders[i][1])) + "**  (" + \
+                                 SortedTopBuyOrders[i][2] + ")\n"
+    else:
+        for i in range(len(SortedTopBuyOrders)):
+            ResultsString += SortedTopBuyOrders[i][0] + " buys for **" + str(int(SortedTopBuyOrders[i][1])) + "**  (" + \
+                                 SortedTopBuyOrders[i][2] + ")\n"
+
+    ResultsString += "\n"
+
+    if len(SortedTopSellOrders) > MaxTops:
+        for i in range(MaxTops):
+            ResultsString += SortedTopSellOrders[i][0] + " sells for **" + str(int(SortedTopSellOrders[i][1])) + "**  (" + \
+                                 SortedTopSellOrders[i][2] + ")\n"
+    else:
+        for i in range(len(SortedSellOrders)):
+            ResultsString += SortedTopSellOrders[i][0] + " sells for **" + str(int(SortedTopSellOrders[i][1])) + "**  (" + \
+                                 SortedTopSellOrders[i][2] + ")\n"
+
+    return ResultsString
+
+
+async def GetMarketOrders(request):
     Req = requests.get('https://api.warframe.market/v1/items/' + request + '/orders')
     Content = Req.content
-    RawData = json.loads(Content)
-    DataPayload = RawData["payload"]
-    Orders = DataPayload["orders"]
-    ResultString = ""
-    BuyOrders = {}
-    SellOrders = {}
-    MaxOrders = 5
-    nickname = ""
-    price = 0
-    type = ""
-    for Order in Orders:
-        try:
-            if Order["user"]["status"] == "ingame":
-                nickname = Order["user"]["ingame_name"]
-                price = Order["platinum"]
-                type = Order["order_type"]
-                if type == "buy":
-                    if nickname in BuyOrders:
-                        if price > BuyOrders[nickname]:
+    if Req.status_code != 404:
+        RawData = json.loads(Content)
+        DataPayload = RawData["payload"]
+        Orders = DataPayload["orders"]
+        Embed = discord.Embed(title=request, color=0x000475)
+        ResultString = ""
+        BuyOrders = {}
+        SellOrders = {}
+        BuyString = ""
+        SellString = ""
+        MaxOrders = 5
+        nickname = ""
+        price = 0
+        type = ""
+        for Order in Orders:
+            try:
+                if Order["user"]["status"] == "ingame":
+                    nickname = Order["user"]["ingame_name"]
+                    price = Order["platinum"]
+                    type = Order["order_type"]
+                    if type == "buy":
+                        if nickname in BuyOrders:
+                            if price > BuyOrders[nickname]:
+                                BuyOrders[nickname] = price
+                        else:
                             BuyOrders[nickname] = price
-                    else:
-                        BuyOrders[nickname] = price
-                elif type == "sell":
-                    if nickname in SellOrders:
-                        if price > SellOrders[nickname]:
+                    elif type == "sell":
+                        if nickname in SellOrders:
+                            if price > SellOrders[nickname]:
+                                SellOrders[nickname] = price
+                        else:
                             SellOrders[nickname] = price
-                    else:
-                        SellOrders[nickname] = price
-        except:
-            print("Error: ", Order)
+            except:
+                print("Error: ", Order)
 
-    SortedSellOrders = sorted(SellOrders.items(), key=lambda x: x[1], reverse=True)
-    SortedBuyOrders = sorted(BuyOrders.items(), key=lambda x: x[1], reverse=True)
-    ResultString += "(" + request + ")" + "\n"
-    if len(SortedBuyOrders) > MaxOrders:
-        for i in range(MaxOrders):
-            ResultString += SortedBuyOrders[i][0] + " buys for " + str(int(SortedBuyOrders[i][1])) + "\n"
-    elif len(SortedBuyOrders) > 0:
-        for Nickname, Price in SortedBuyOrders:
-            ResultString += Nickname + " buys for " + str(int(Price)) + "\n"
-    else:
-        ResultString += "No Buy Orders." + "\n"
+        SortedBuyOrders = sorted(BuyOrders.items(), key=lambda x: x[1], reverse=True)
+        SortedSellOrders = sorted(SellOrders.items(), key=lambda x: x[1])
 
-    ResultString += "\n"
 
-    if len(SortedSellOrders) > MaxOrders:
-        for i in range(MaxOrders):
-            ResultString += SortedSellOrders[i][0] + " sells for " + str(int(SortedSellOrders[i][1])) + "\n"
-    elif len(SortedSellOrders) > 0:
-        for Nickname, Price in SortedSellOrders:
-            ResultString += Nickname + " sels for " + str(int(Price)) + "\n"
-    else:
-        ResultString += "No Sell Orders." + "\n"
+        if len(SortedBuyOrders) > MaxOrders:
+            BuyOrdersAmount = MaxOrders
+        else:
+            BuyOrdersAmount = len(SortedBuyOrders)
 
-    ResultString += "\n"
-    return (ResultString, (SortedBuyOrders, request), (SortedSellOrders, request))
+        if len(SortedSellOrders) > MaxOrders:
+            SellOrdersAmount = MaxOrders
+        else:
+            SellOrdersAmount = len(SortedSellOrders)
+
+        MaxOrdersAmount = 0
+        if BuyOrdersAmount > SellOrdersAmount:
+            MaxOrdersAmount = BuyOrdersAmount
+        else:
+            MaxOrdersAmount = SellOrdersAmount
+
+        for i in range(MaxOrdersAmount):
+            if BuyOrdersAmount > i:
+                BuyString += "**" + str(int(SortedBuyOrders[i][1])) + "** " + str(SortedBuyOrders[i][0]) + "\n\n"
+
+            if SellOrdersAmount > i:
+                SellString += "**" + str(int(SortedSellOrders[i][1])) + "**  " + str(SortedSellOrders[i][0]) + "\n\n"
+
+        Embed.add_field(name="**Buys**", value=BuyString, inline=True)
+        Embed.add_field(name="**Sells**", value=SellString, inline=True)
+        return (Embed, ResultString, (SortedBuyOrders, request), (SortedSellOrders, request))
+    Embed = discord.Embed(title=request, color=0x000475)
+    return (Embed, "0", (0,"0"), (0,"0"))
 
 @client.event
 async def on_ready():
@@ -116,58 +180,24 @@ async def on_message(message):
         CetusData = json.loads(Content)
         await message.channel.send(CetusData["shortString"])
 
+    if len(message.content.split()) > 2:
+        if message.content.split()[0] == "wf" and message.content.split()[1] == "market":
+            try:
+                Embed, ReturnString, Buys, Sells = await GetMarketOrders(message.content.split()[2])
+                if ReturnString != "0":
+                    await message.channel.send(embed=Embed)
+            except:
+                await message.channel.send("Error!")
+
     if message.content == "wf perrin":
-        ResultsString = ""
-        MaxTops = 4
-        TopBuyOrders = []
-        TopSellOrders = []
-
-        ReturnString, Buys, Sells = GetMarketOrders("secura_dual_cestra")
-        ResultsString += ReturnString
-        for i in range(len(Buys[0])):
-            TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
-        for i in range(len(Sells[0])):
-            TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
-
-        ReturnString, Buys, Sells = GetMarketOrders("secura_lecta")
-        ResultsString += ReturnString
-        for i in range(len(Buys[0])):
-            TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
-        for i in range(len(Sells[0])):
-            TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
-
-        ReturnString, Buys, Sells = GetMarketOrders("secura_penta")
-        ResultsString += ReturnString
-        for i in range(len(Buys[0])):
-            TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
-        for i in range(len(Sells[0])):
-            TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
-
-        SortedTopBuyOrders = sorted(TopBuyOrders, key=lambda x:x[1], reverse=True)
-        SortedTopSellOrders = sorted(TopSellOrders, key=lambda x:x[1])
-
-        if len(SortedTopBuyOrders) > MaxTops:
-            for i in range(MaxTops):
-                ResultsString += SortedTopBuyOrders[i][0] + " buys for " + str(SortedTopBuyOrders[i][1]) + "  (" + SortedTopBuyOrders[i][2] + ")\n"
-        else:
-            for i in range(len(SortedTopBuyOrders)):
-                ResultsString += SortedTopBuyOrders[i][0] + " buys for " + str(SortedTopBuyOrders[i][1]) + "  (" + SortedTopBuyOrders[i][2] + ")\n"
-
-        ResultsString += "\n"
-
-        if len(SortedTopSellOrders) > MaxTops:
-            for i in range(MaxTops):
-                ResultsString += SortedTopSellOrders[i][0] + " sells for " + str(SortedTopSellOrders[i][1]) + "  (" + SortedTopSellOrders[i][2] + ")\n"
-        else:
-            for i in range(len(SortedSellBuyOrders)):
-                ResultsString += SortedTopSellOrders[i][0] + " sells for " + str(SortedTopSellOrders[i][1]) + "  (" + SortedTopSellOrders[i][2] + ")\n"
-
+        ResultsString = await GetMarketPerrinWeapons()
         await message.channel.send(ResultsString)
 
     if message.content == "wf help":
-        await message.channel.send("wf invasions : Invasions data \n"
-                                   "wf cetus : Cetus cycle data \n"
-                                   "wf perrin : Get Syndicate weapons orders")
+        await message.channel.send("wf invasions : Invasions Data \n"
+                                   "wf cetus : Cetus Cycle Data \n"
+                                   "wf perrin : Get Perrin Sequence Weapons Buy/Sell Orders from Warframe Market \n"
+                                   "wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market")
     
 
 client.run(TOKEN)
