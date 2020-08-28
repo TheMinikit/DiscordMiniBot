@@ -1,1 +1,1 @@
-git+github.com/TheMinikit/WarframeDiscordBot
+git github.com/TheMinikit/WarframeDiscordBot
