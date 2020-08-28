@@ -1,1 +1,1 @@
-git github.com/TheMinikit/WarframeDiscordBot
+worker: python bot.py
