@@ -2,9 +2,16 @@ import os
 import requests
 import discord
 import json
+import pyautogui
+import pytesseract
+import ffmpeg
+import asyncio
+from PIL import Image
+from html.parser import HTMLParser
 TOKEN = 'NjUzODk0NDMwNTM2NzYxMzQ0.Xe9opQ.XxkhQLgmzI_-GnNLbCyNrkZKoZg'
 
 client = discord.Client()
+pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files (x86)\\TesseractOCR\\tesseract.exe'
 
 async def GetMarketPerrinWeapons():
     MaxTops = 4
@@ -135,7 +142,6 @@ async def on_ready():
     print(f'{client.user} has connected to Discord!')
     print("")
 
-
 @client.event
 async def on_message(message):
     if message.content == "wf invasions":
@@ -147,7 +153,7 @@ async def on_message(message):
         OuterList = json.loads(Content)
         for Item in OuterList:
             if Item["completed"] == False:
-                RewardsString += str(Item["node"]) + "\n"
+                RewardsString += str(Item["node"]) + "  " + str(round(Item["completion"], 1)) + "%\n"
                 try:
                     RewardData = Item["attackerReward"]["countedItems"][0]
                     if RewardData["count"] > 1:
@@ -172,6 +178,12 @@ async def on_message(message):
                         RewardsString += str(RewardData["key"])
                     RewardsString += "\n"
                 RewardsString += "\n"
+
+        if "Orokin Reactor Blueprint" in RewardsString or "Orokin Catalyst Blueprint" in RewardsString:
+            Role = client.guild.roles.mention('name', 'Warframe')
+            message.channel.send(Role.mention() + " Orokin stuff detected.")
+
+
         await message.channel.send(RewardsString)
 
     if message.content == "wf cetus":
@@ -179,15 +191,6 @@ async def on_message(message):
         Content = Req.content
         CetusData = json.loads(Content)
         await message.channel.send(CetusData["shortString"])
-
-    if len(message.content.split()) > 2:
-        if message.content.split()[0] == "wf" and message.content.split()[1] == "market":
-            try:
-                Embed, ReturnString, Buys, Sells = await GetMarketOrders(message.content.split()[2])
-                if ReturnString != "0":
-                    await message.channel.send(embed=Embed)
-            except:
-                await message.channel.send("Error!")
 
     if message.content == "wf perrin":
         ResultsString = await GetMarketPerrinWeapons()
@@ -198,6 +201,84 @@ async def on_message(message):
                                    "wf cetus : Cetus Cycle Data \n"
                                    "wf perrin : Get Perrin Sequence Weapons Buy/Sell Orders from Warframe Market \n"
                                    "wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market")
-    
+
+    if len(message.content.split()) > 1:
+        if message.content.split()[0] == "p":
+            soundfile = message.content.split()[1]
+            await PlaySound(message, soundfile)
+
+    if len(message.content.split()) > 2:
+        if message.content.split()[0] == "wf" and message.content.split()[1] == "market":
+            try:
+                Embed, ReturnString, Buys, Sells = await GetMarketOrders(message.content.split()[2])
+                if ReturnString != "0":
+                    await message.channel.send(embed=Embed)
+            except:
+                await message.channel.send("Error!")
+
+
+
+    if message.content == "TERRARIA":
+        oldString = ""
+        while(True):
+            if oldString == "<Kit> goodnightbot":
+                break
+            oldString = await ScreenshotAndSound(message, oldString)
+            await asyncio.sleep(.25)
+
+    if message.content == "goodnight":
+        await message.delete()
+        await client.logout()
+
+    if message.content == "terra":
+        Req = requests.get('https://terraria.gamepedia.com/api.php?action=parse&format=json&page=Titanium_Crate')
+        Content = Req.content
+        RewardsList = []
+        RewardsString = ""
+        Reward = " "
+        PageData = json.loads(Content)
+        ParseData = PageData["parse"]["text"]["*"]
+        #ParsedData = HTMLParser.feed(ParseData)
+        print(ParsedData)
+        await message.delete()
+
+
+async def ScreenshotAndSound(message, oldString):
+    myScreenshot = pyautogui.screenshot()
+    myScreenshot.save("one.png")
+    img = Image.open("one.png")
+    #newImg = img.crop((0,696,200,715))
+    newImg = img.crop((0,696,200,710))
+    newImg.save("two.png")
+    ScreenshotString = pytesseract.image_to_string(newImg)
+    ScreenshotString = ScreenshotString[:-1]
+    if oldString != ScreenshotString and "<" in ScreenshotString and ">" in ScreenshotString:
+        try:
+            print("ScreenshotString", ScreenshotString)
+            soundfile = ScreenshotString.split()[-1]
+            oldString = ScreenshotString
+            await PlaySound(message, soundfile)
+            await asyncio.sleep(5)
+            await print("Ready")
+            return oldString
+        except:
+            print("Error")
+    return oldString
+
+#@bot.command(name="dum")
+async def PlaySound (message, soundfile):
+    voice_channel = message.author.voice.channel
+    channel = None
+    #print(client.voice_clients)
+    if voice_channel != None:
+        channel = voice_channel.name
+        vc = await voice_channel.connect()
+        vc.play(discord.FFmpegPCMAudio(executable="C:/Users/XPS/Desktop/Discord/Python/ffmpeg/bin/ffmpeg.exe", source="C:/Users/XPS/Desktop/Discord/Python/Sounds/" + soundfile + ".wav"))
+        while vc.is_playing():
+            await asyncio.sleep(.5)
+        await vc.disconnect()
+    else:
+        await message.channel.send(str(message.author.name) + "is not in a channel.")
+    #await message.delete()
 
 client.run(TOKEN)
