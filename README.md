@@ -14,3 +14,11 @@ v0.2 26/08/2020
 v0.3 27/08/2020
   +Perrin Sequence Command (wf perrin)
   +Market Prices/Orders Commands (wf market <weapon>)
+
+
+v0.4 04/09/2020
+  +Play Sound Command (p <sound>)
+  +Terraria "saysounds" mode command (TERRARIA)
+  
+v0.5
+  ~Cetus Cycle command upgraded to All World Cycles command (wf cetus -> wf cycles)
