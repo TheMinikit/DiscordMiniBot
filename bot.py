@@ -186,26 +186,55 @@ async def on_message(message):
 
         await message.channel.send(RewardsString)
 
-    if message.content == "wf cetus":
+    if message.content == "wf cycles":
+        ResultString = ""
+
         Req = requests.get('https://api.warframestat.us/pc/cetusCycle')
         Content = Req.content
         CetusData = json.loads(Content)
-        await message.channel.send(CetusData["shortString"])
+        if CetusData["state"] == "day" or CetusData["state"] == "night":
+            ResultString += "Cetus: " + CetusData["state"].capitalize() + " (" + CetusData["shortString"] + ")\n\n"
+        else:
+            ResultString += "Cetus Cycle Error."
+
+        Req = requests.get('https://api.warframestat.us/pc/vallisCycle')
+        Content = Req.content
+        VallisData = json.loads(Content)
+        if VallisData["state"] == "cold" or VallisData["state"] == "warm":
+            ResultString += "Orb Vallis: " + VallisData["state"].capitalize() + " (" + VallisData["shortString"] + ")\n\n"
+        else:
+            ResultString += "Orb Vallis Cycle Error."
+
+        Req = requests.get('https://api.warframestat.us/pc/cambionCycle')
+        Content = Req.content
+        CambionData = json.loads(Content)
+        if CambionData["active"] == "fass":
+            ResultString += "Cambion Drift: " + CambionData["active"].capitalize() + " (??m to Vome)"
+        elif CambionData["active"] == "vome":
+            ResultString += "Cambion Drift: " + CambionData["active"].capitalize() + " (??m to Fass)"
+        else:
+            ResultString += "Cambion Drift Cycle Error."
+
+        await message.channel.send(ResultString)
+
 
     if message.content == "wf perrin":
         ResultsString = await GetMarketPerrinWeapons()
         await message.channel.send(ResultsString)
 
+
     if message.content == "wf help":
-        await message.channel.send("wf invasions : Invasions Data \n"
-                                   "wf cetus : Cetus Cycle Data \n"
+        await message.channel.send("wf invasions : Get Invasions Data \n"
+                                   "wf cycles : Get Cycles Data \n"
                                    "wf perrin : Get Perrin Sequence Weapons Buy/Sell Orders from Warframe Market \n"
                                    "wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market")
+
 
     if len(message.content.split()) > 1:
         if message.content.split()[0] == "p":
             soundfile = message.content.split()[1]
             await PlaySound(message, soundfile)
+
 
     if len(message.content.split()) > 2:
         if message.content.split()[0] == "wf" and message.content.split()[1] == "market":
@@ -215,7 +244,6 @@ async def on_message(message):
                     await message.channel.send(embed=Embed)
             except:
                 await message.channel.send("Error!")
-
 
 
     if message.content == "TERRARIA":
@@ -266,7 +294,7 @@ async def ScreenshotAndSound(message, oldString):
     return oldString
 
 #@bot.command(name="dum")
-async def PlaySound (message, soundfile):
+async def PlaySound(message, soundfile):
     voice_channel = message.author.voice.channel
     channel = None
     #print(client.voice_clients)
