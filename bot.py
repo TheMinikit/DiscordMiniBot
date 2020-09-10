@@ -5,6 +5,7 @@ import json
 import pytesseract
 import ffmpeg
 import asyncio
+import pyautogui
 from PIL import Image
 #from html.parser import HTMLParser
 TOKEN = 'NjUzODk0NDMwNTM2NzYxMzQ0.Xe9opQ.XxkhQLgmzI_-GnNLbCyNrkZKoZg'
