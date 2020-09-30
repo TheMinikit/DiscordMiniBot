@@ -21,6 +21,12 @@ pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files (x86)\\TesseractOCR\\
 #
 #
 
+
+#GENERAL#
+async def DeleteMessageAfterDelay(message, delay):
+    await asyncio.sleep(delay)
+    await message.delete()
+
 #WARFRAME#
 async def GetMarketPerrinWeapons():
     MaxTops = 4
@@ -233,8 +239,8 @@ async def on_message(message):
             Role = client.guild.roles.mention('name', 'Warframe')
             message.channel.send(Role.mention() + " Orokin stuff detected.")
 
-
-        await message.channel.send(RewardsString)
+        await DeleteMessageAfterDelay(message, 0.5)
+        await DeleteMessageAfterDelay(await message.channel.send(RewardsString), 30)
 
     if message.content == "wf cycles":
         ResultString = ""
@@ -265,12 +271,16 @@ async def on_message(message):
         else:
             ResultString += "Cambion Drift Cycle Error."
 
-        await message.channel.send(ResultString)
+        await DeleteMessageAfterDelay(message, 0.5)
+        await DeleteMessageAfterDelay(await message.channel.send(ResultString), 10)
+
 
 
     if message.content == "wf perrin":
         ResultsString = await GetMarketPerrinWeapons()
-        await message.channel.send(ResultsString)
+
+        await DeleteMessageAfterDelay(message, 0.5)
+        await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 10)
 
 
     if message.content == "TERRARIA":
@@ -301,7 +311,8 @@ async def on_message(message):
 
 
     if message.content == "bot help":
-        await message.channel.send("General:\n"
+
+        await DeleteMessageAfterDelay(await message.channel.send("General:\n"
                                    "bot help : Get all available bot commands\n"
                                    "\n"
                                    "Warframe:\n"
@@ -312,12 +323,13 @@ async def on_message(message):
                                    "\n"
                                    "Local Use Only:\n"
                                    "p list : Get all available sounds to play\n"
-                                   "p <sound> : Play sound in your voice channel")
+                                   "p <sound> : Play sound in your voice channel"), 30)
+        await DeleteMessageAfterDelay(message, 0.5)
 
 
     if len(message.content.split()) > 1:
 
-        if message.content.split()[0] == "p":
+        if message.content.split()[0] == "p":       #Double Word(Parameter) Commands (Example: p list)
             if message.content.split()[1] == "list":
                 FileList = os.listdir("C:/Users/XPS/Desktop/Discord/Python/Sounds")
                 FileListString = ""
@@ -327,6 +339,21 @@ async def on_message(message):
             else:
                 soundfile = message.content.split()[1]
                 await PlaySound(message, soundfile)
+                await DeleteMessageAfterDelay(message, 0.5)
+
+
+    if len(message.content.split()) > 2:        #Triple Word(Parameter) Commands (Example: wf market secura_lecta)
+
+        if message.content.split()[0] == "wf" and message.content.split()[1] == "market":
+            await DeleteMessageAfterDelay(message, 0.5)
+            try:
+                Embed, ReturnString, Buys, Sells = await GetMarketOrders(message.content.split()[2])
+                if ReturnString != "0":
+                    await DeleteMessageAfterDelay(await message.channel.send(embed=Embed), 30)
+            except:
+
+                await DeleteMessageAfterDelay(await message.channel.send("Error!"), 10)
+
 
 
     if len(message.content.split()) > 2:
@@ -338,6 +365,7 @@ async def on_message(message):
                     await message.channel.send(embed=Embed)
             except:
                 await message.channel.send("Error!")
+
 
 
 

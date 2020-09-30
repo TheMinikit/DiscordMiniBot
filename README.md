@@ -22,3 +22,7 @@ v0.4 04/09/2020
   
 v0.5
   ~Cetus Cycle command upgraded to All World Cycles command (wf cetus -> wf cycles)
+
+v0.6
+  +Function MessageDeleteAfterDelay
+  ~Added new function some most of the Warframe commands
