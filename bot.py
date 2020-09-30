@@ -21,6 +21,7 @@ pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files (x86)\\TesseractOCR\\
 #
 #
 
+
 #GENERAL#
 async def DeleteMessageAfterDelay(message, delay):
     await asyncio.sleep(delay)
@@ -277,6 +278,7 @@ async def on_message(message):
 
     if message.content == "wf perrin":
         ResultsString = await GetMarketPerrinWeapons()
+
         await DeleteMessageAfterDelay(message, 0.5)
         await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 10)
 
@@ -309,6 +311,7 @@ async def on_message(message):
 
 
     if message.content == "bot help":
+
         await DeleteMessageAfterDelay(await message.channel.send("General:\n"
                                    "bot help : Get all available bot commands\n"
                                    "\n"
@@ -350,6 +353,18 @@ async def on_message(message):
             except:
 
                 await DeleteMessageAfterDelay(await message.channel.send("Error!"), 10)
+
+
+
+    if len(message.content.split()) > 2:
+
+        if message.content.split()[0] == "wf" and message.content.split()[1] == "market":
+            try:
+                Embed, ReturnString, Buys, Sells = await GetMarketOrders(message.content.split()[2])
+                if ReturnString != "0":
+                    await message.channel.send(embed=Embed)
+            except:
+                await message.channel.send("Error!")
 
 
 
