@@ -15,10 +15,6 @@ client = discord.Client()
 pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files (x86)\\TesseractOCR\\tesseract.exe'
 
 
-# TO-DO#
-# Parse TerrariaWiki Data
-#
-
 # GENERAL#
 async def DeleteMessageAfterDelay(message, delay):
     await asyncio.sleep(delay)
@@ -26,32 +22,95 @@ async def DeleteMessageAfterDelay(message, delay):
 
 
 # WARFRAME#
+
+async def GetMarketOrders(request):
+    Req = requests.get('https://api.warframe.market/v1/items/' + request + '/orders')
+    Content = Req.content
+    if Req.status_code != 404:
+        try:
+            RawData = json.loads(Content)
+            DataPayload = RawData["payload"]
+            Orders = DataPayload["orders"]
+            Embed = discord.Embed(title=request, color=0x000475)
+            BuyOrders = {}
+            SellOrders = {}
+            BuyString = ""
+            SellString = ""
+            MaxOrders = 5
+            nickname = ""
+            price = 0
+            type = ""
+            for Order in Orders:
+                try:
+                    if Order["user"]["status"] == "ingame":
+                        nickname = Order["user"]["ingame_name"]
+                        price = Order["platinum"]
+                        type = Order["order_type"]
+                        if type == "buy":
+                            if nickname in BuyOrders:
+                                if price > BuyOrders[nickname]:
+                                    BuyOrders[nickname] = price
+                            else:
+                                BuyOrders[nickname] = price
+                        elif type == "sell":
+                            if nickname in SellOrders:
+                                if price > SellOrders[nickname]:
+                                    SellOrders[nickname] = price
+                            else:
+                                SellOrders[nickname] = price
+                except:
+                    print("Error: ", Order)
+
+            SortedBuyOrders = sorted(BuyOrders.items(), key=lambda x: x[1], reverse=True)
+            SortedSellOrders = sorted(SellOrders.items(), key=lambda x: x[1])
+
+            if len(SortedBuyOrders) > MaxOrders:
+                BuyOrdersAmount = MaxOrders
+            else:
+                BuyOrdersAmount = len(SortedBuyOrders)
+
+            if len(SortedSellOrders) > MaxOrders:
+                SellOrdersAmount = MaxOrders
+            else:
+                SellOrdersAmount = len(SortedSellOrders)
+
+            MaxOrdersAmount = 0
+            if BuyOrdersAmount > SellOrdersAmount:
+                MaxOrdersAmount = BuyOrdersAmount
+            else:
+                MaxOrdersAmount = SellOrdersAmount
+
+            for i in range(MaxOrdersAmount):
+                if BuyOrdersAmount > i:
+                    BuyString += "**" + str(int(SortedBuyOrders[i][1])) + "** " + str(SortedBuyOrders[i][0]) + "\n\n"
+
+                if SellOrdersAmount > i:
+                    SellString += "**" + str(int(SortedSellOrders[i][1])) + "**  " + str(
+                        SortedSellOrders[i][0]) + "\n\n"
+
+            Embed.add_field(name="**Buys**", value=BuyString, inline=True)
+            Embed.add_field(name="**Sells**", value=SellString, inline=True)
+            return (Embed, (SortedBuyOrders, request), (SortedSellOrders, request))
+        except:
+            print("Caught Error in: ", request)
+
+    Embed = discord.Embed(title=request, color=0x000475)
+    return (Embed, (0, "0"), (0, "0"))
+
+
 async def GetMarketPerrinWeapons():
     MaxTops = 4
+    Items = ["secura_dual_cestra", "secura_lecta", "secura_penta"]
     TopBuyOrders = []
     TopSellOrders = []
     ResultsString = ""
 
-    Embed, ReturnString, Buys, Sells = await GetMarketOrders("secura_dual_cestra")
-    ResultsString += ReturnString
-    for i in range(len(Buys[0])):
-        TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
-    for i in range(len(Sells[0])):
-        TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
-
-    Embed, ReturnString, Buys, Sells = await GetMarketOrders("secura_lecta")
-    ResultsString += ReturnString
-    for i in range(len(Buys[0])):
-        TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
-    for i in range(len(Sells[0])):
-        TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
-
-    Embed, ReturnString, Buys, Sells = await GetMarketOrders("secura_penta")
-    ResultsString += ReturnString
-    for i in range(len(Buys[0])):
-        TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
-    for i in range(len(Sells[0])):
-        TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
+    for Item in Items:
+        Embed, Buys, Sells = await GetMarketOrders(Item)
+        for i in range(len(Buys[0])):
+            TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
+        for i in range(len(Sells[0])):
+            TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
 
     SortedTopBuyOrders = sorted(TopBuyOrders, key=lambda x: x[1], reverse=True)
     SortedTopSellOrders = sorted(TopSellOrders, key=lambda x: x[1])
@@ -81,75 +140,58 @@ async def GetMarketPerrinWeapons():
     return ResultsString
 
 
-async def GetMarketOrders(request):
-    Req = requests.get('https://api.warframe.market/v1/items/' + request + '/orders')
-    Content = Req.content
-    if Req.status_code != 404:
-        RawData = json.loads(Content)
-        DataPayload = RawData["payload"]
-        Orders = DataPayload["orders"]
-        Embed = discord.Embed(title=request, color=0x000475)
-        ResultString = ""
-        BuyOrders = {}
-        SellOrders = {}
-        BuyString = ""
-        SellString = ""
-        MaxOrders = 5
-        nickname = ""
-        price = 0
-        type = ""
-        for Order in Orders:
-            try:
-                if Order["user"]["status"] == "ingame":
-                    nickname = Order["user"]["ingame_name"]
-                    price = Order["platinum"]
-                    type = Order["order_type"]
-                    if type == "buy":
-                        if nickname in BuyOrders:
-                            if price > BuyOrders[nickname]:
-                                BuyOrders[nickname] = price
-                        else:
-                            BuyOrders[nickname] = price
-                    elif type == "sell":
-                        if nickname in SellOrders:
-                            if price > SellOrders[nickname]:
-                                SellOrders[nickname] = price
-                        else:
-                            SellOrders[nickname] = price
-            except:
-                print("Error: ", Order)
+async def GetMarketPerrinOfferings():
+    MaxTops = 10
+    Items = []
+    TopBuyOrders = []
+    TopSellOrders = []
+    ResultsString = ""
 
-        SortedBuyOrders = sorted(BuyOrders.items(), key=lambda x: x[1], reverse=True)
-        SortedSellOrders = sorted(SellOrders.items(), key=lambda x: x[1])
+    offeringsFile = open("offerings_perrin.txt", "r")
+    for line in offeringsFile:
+        Items.append(line.rstrip())
 
-        if len(SortedBuyOrders) > MaxOrders:
-            BuyOrdersAmount = MaxOrders
-        else:
-            BuyOrdersAmount = len(SortedBuyOrders)
+    print("")
+    print("")
+    for Item in Items:
+        await asyncio.sleep(0.1)
+        Embed, Buys, Sells = await GetMarketOrders(Item)
+        print(Item)
+        for i in range(len(Buys[0])):
+            TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1], Buys[1]))
+        for i in range(len(Sells[0])):
+            TopSellOrders.append((Sells[0][i][0], Sells[0][i][1], Sells[1]))
 
-        if len(SortedSellOrders) > MaxOrders:
-            SellOrdersAmount = MaxOrders
-        else:
-            SellOrdersAmount = len(SortedSellOrders)
+    print(ResultsString)
 
-        MaxOrdersAmount = 0
-        if BuyOrdersAmount > SellOrdersAmount:
-            MaxOrdersAmount = BuyOrdersAmount
-        else:
-            MaxOrdersAmount = SellOrdersAmount
+    SortedTopBuyOrders = sorted(TopBuyOrders, key=lambda x: x[1], reverse=True)
+    SortedTopSellOrders = sorted(TopSellOrders, key=lambda x: x[1])
 
-        for i in range(MaxOrdersAmount):
-            if BuyOrdersAmount > i:
-                BuyString += "**" + str(int(SortedBuyOrders[i][1])) + "** " + str(SortedBuyOrders[i][0]) + "\n\n"
+    if len(SortedTopBuyOrders) > MaxTops:
+        for i in range(MaxTops):
+            ResultsString += SortedTopBuyOrders[i][0] + " buys for **" + str(int(SortedTopBuyOrders[i][1])) + "**  (" + \
+                             SortedTopBuyOrders[i][2] + ")\n"
+    else:
+        for i in range(len(SortedTopBuyOrders)):
+            ResultsString += SortedTopBuyOrders[i][0] + " buys for **" + str(int(SortedTopBuyOrders[i][1])) + "**  (" + \
+                             SortedTopBuyOrders[i][2] + ")\n"
 
-            if SellOrdersAmount > i:
-                SellString += "**" + str(int(SortedSellOrders[i][1])) + "**  " + str(SortedSellOrders[i][0]) + "\n\n"
+    ResultsString += "\n"
 
-        Embed.add_field(name="**Buys**", value=BuyString, inline=True)
-        Embed.add_field(name="**Sells**", value=SellString, inline=True)
-        return (Embed, ResultString, (SortedBuyOrders, request), (SortedSellOrders, request))
-    Embed = discord.Embed(title=request, color=0x000475)
-    return (Embed, "0", (0, "0"), (0, "0"))
+    if len(SortedTopSellOrders) > MaxTops:
+        for i in range(MaxTops):
+            ResultsString += SortedTopSellOrders[i][0] + " sells for **" + str(
+                int(SortedTopSellOrders[i][1])) + "**  (" + \
+                             SortedTopSellOrders[i][2] + ")\n"
+    else:
+        for i in range(len(SortedTopSellOrders)):
+            ResultsString += SortedTopSellOrders[i][0] + " sells for **" + str(
+                int(SortedTopSellOrders[i][1])) + "**  (" + \
+                             SortedTopSellOrders[i][2] + ")\n"
+    return ResultsString
+
+
+
 
 
 # TERRARIA#
@@ -169,7 +211,7 @@ async def ScreenshotAndSound(message, oldString):
             oldString = ScreenshotString
             await PlaySound(message, soundfile)
             await asyncio.sleep(5)
-            #await print("Ready")
+            # await print("Ready")
             return oldString
         except:
             print("Error")
@@ -202,7 +244,6 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-
     if message.content == "saysounds":
         oldString = ""
         while (True):
@@ -224,7 +265,7 @@ async def on_message(message):
         PageData = json.loads(Content)
         ParseData = PageData["parse"]["text"]["*"]
         # ParsedData = HTMLParser.feed(ParseData)
-        #print(ParsedData)
+        # print(ParsedData)
         await message.delete()
 
     if message.content == "test":
@@ -236,21 +277,22 @@ async def on_message(message):
             if message.content.split()[1] == "help":
                 await DeleteMessageAfterDelay(message, 0.5)
                 await DeleteMessageAfterDelay(await message.channel.send("General:\n"
-                                                                         "bot help : Get all available bot commands\n"
+                                                                            "bot help : Get all available bot commands\n"
                                                                          "\n"
                                                                          "Warframe:\n"
-                                                                         "wf invasions : Get Invasions Data \n"
-                                                                         "wf cycles : Get World Cycles Data \n"
-                                                                         "wf perrin : Get Perrin Sequence Weapons Buy/Sell Orders from Warframe Market \n"
-                                                                         "wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market\n"
+                                                                            "wf invasions : Get Invasions Data \n"
+                                                                            "wf cycles : Get World Cycles Data \n"
+                                                                            "wf perrin weapons: Get Perrin Sequence Weapons Buy/Sell Orders from Warframe Market \n"
+                                                                            "wf perrin offerings: Get Perrin Sequence Augments and Arch parts Buy/Sell Orders from Warframe Market \n"
+                                                                            "wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market\n"
                                                                          "\n"
                                                                          "Local Use Only:\n"
-                                                                         "p list : Get all available sounds to play\n"
-                                                                         "p <sound> : Play sound in your voice channel"),
+                                                                            "p list : Get all available sounds to play\n"
+                                                                            "p <sound> : Play sound in your voice channel"),
                                               30)
             else:
                 await DeleteMessageAfterDelay(await message.channel.send("No such Bot Command.\n"
-                                                                         "Check bot help for available commands."), 5)
+                                                                         "Use bot help for available commands."), 5)
 
         elif message.content.split()[0] == "p":
             if message.content.split()[1] == "list":
@@ -265,6 +307,7 @@ async def on_message(message):
                 await DeleteMessageAfterDelay(message, 0.5)
 
         elif message.content.split()[0] == "wf":
+
             if message.content.split()[1] == "invasions":
                 Req = requests.get('https://api.warframestat.us/pc/invasions')
                 Content = Req.content
@@ -305,6 +348,7 @@ async def on_message(message):
 
                 await DeleteMessageAfterDelay(message, 0.5)
                 await DeleteMessageAfterDelay(await message.channel.send(RewardsString), 30)
+
             elif message.content.split()[1] == "cycles":
                 ResultString = ""
                 Req = requests.get('https://api.warframestat.us/pc/cetusCycle')
@@ -312,7 +356,7 @@ async def on_message(message):
                 CetusData = json.loads(Content)
                 if CetusData["state"] == "day" or CetusData["state"] == "night":
                     ResultString += "Cetus: " + CetusData["state"].capitalize() + " (" + CetusData[
-                    "shortString"] + ")\n\n"
+                        "shortString"] + ")\n\n"
                 else:
                     ResultString += "Cetus Cycle Error."
 
@@ -321,7 +365,7 @@ async def on_message(message):
                 VallisData = json.loads(Content)
                 if VallisData["state"] == "cold" or VallisData["state"] == "warm":
                     ResultString += "Orb Vallis: " + VallisData["state"].capitalize() + " (" + VallisData[
-                    "shortString"] + ")\n\n"
+                        "shortString"] + ")\n\n"
                 else:
                     ResultString += "Orb Vallis Cycle Error."
 
@@ -337,10 +381,27 @@ async def on_message(message):
 
                 await DeleteMessageAfterDelay(message, 0.5)
                 await DeleteMessageAfterDelay(await message.channel.send(ResultString), 10)
+
             elif message.content.split()[1] == "perrin":
-                ResultsString = await GetMarketPerrinWeapons()
-                await DeleteMessageAfterDelay(message, 0.5)
-                await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 10)
+                if len(message.content.split()) > 2:
+                    if message.content.split()[2] == "weapons":
+
+                        ResultsString = await GetMarketPerrinWeapons()
+                        await DeleteMessageAfterDelay(message, 0.5)
+                        await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 20)
+
+                    elif message.content.split()[2] == "offerings":
+                        ResultsString = await GetMarketPerrinOfferings()
+                        await DeleteMessageAfterDelay(message, 0.5)
+                        await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 20)
+
+                    else:
+                        await DeleteMessageAfterDelay(message, 5)
+                        await DeleteMessageAfterDelay(await message.channel.send("No such Warframe command.\n"
+                                                                                 "Check bot help for available commands"),
+                                                      5)
+
+
             elif message.content.split()[1] == "market":
                 if len(message.content.split()) > 2:
                     await DeleteMessageAfterDelay(message, 0.5)
@@ -351,9 +412,12 @@ async def on_message(message):
                     except:
                         await DeleteMessageAfterDelay(await message.channel.send("Error!"), 10)
                 else:
-                    await DeleteMessageAfterDelay(await message.channel.send("Error! Please use format: wf market <item>"), 10)
+                    await DeleteMessageAfterDelay(
+                        await message.channel.send("Error! Please use format: wf market <item>"), 10)
+
             else:
                 await DeleteMessageAfterDelay(await message.channel.send("No such Warframe command.\n"
                                                                          "Check bot help for available commands"), 5)
+
 
 client.run(TOKEN)
