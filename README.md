@@ -26,3 +26,8 @@ v0.5
 v0.6
   +Function MessageDeleteAfterDelay
   ~Added new function some most of the Warframe commands
+  
+v0.7
+  Changed perrin command to perrin weapons command
+  Added perrin offerings command
+  Minor optimization
