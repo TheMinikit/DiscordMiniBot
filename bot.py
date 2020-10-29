@@ -281,19 +281,19 @@ async def on_message(message):
             if message.content.split()[1] == "help":
                 await DeleteMessageAfterDelay(message, 0.5)
                 await DeleteMessageAfterDelay(await message.channel.send("General:\n"
-                                                                            "bot help : Get all available bot commands\n"
+                                                                         "  bot help : Get all available bot commands\n"
                                                                          "\n"
                                                                          "Warframe:\n"
-                                                                            "wf invasions : Get Invasions Data \n"
-                                                                            "wf cycles : Get World Cycles Data \n"
-                                                                            "wf perrin weapons: Get Perrin Sequence Weapons Buy/Sell Orders from Warframe Market \n"
-                                                                            "wf perrin offerings: Get Perrin Sequence Augments and Arch parts Buy/Sell Orders from Warframe Market \n"
-                                                                            "wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market\n"
+                                                                         "  wf invasions : Get Invasions Data \n"
+                                                                         "  wf cycles : Get World Cycles Data \n"
+                                                                         "  wf syndicate:\n"
+                                                                         "      <syndicate> weapons: Get <syndicate> Weapons Buy/Sell Orders from Warframe Market \n"
+                                                                         "      <syndicate> offerings: Get <syndicate> Augments and Arch parts Buy/Sell Orders from Warframe Market \n"
+                                                                         "  wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market\n"
                                                                          "\n"
                                                                          "Local Use Only:\n"
-                                                                            "p list : Get all available sounds to play\n"
-                                                                            "p <sound> : Play sound in your voice channel"),
-                                              30)
+                                                                         "  p list : Get all available sounds to play\n"
+                                                                         "  p <sound> : Play sound in your voice channel"),30)
             else:
                 await DeleteMessageAfterDelay(await message.channel.send("No such Bot Command.\n"
                                                                          "Use bot help for available commands."), 5)
