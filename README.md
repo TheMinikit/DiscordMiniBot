@@ -31,3 +31,9 @@ v0.7
   Changed perrin command to perrin weapons command
   Added perrin offerings command
   Minor optimization
+  
+v0.8
+  Changed perrin command to syndicate
+  Added new command: wf syndicate <syndicate> weapons (displays market offers for <syndicate> weapons)
+  Added new command: wf syndicate <syndicate> offerings (displays market offers for <syndicate> offerings)
+  
