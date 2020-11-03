@@ -1,0 +1,3 @@
+synoid_gammacor
+synoid_simulor
+synoid_heliocor
