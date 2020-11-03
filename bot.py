@@ -1,12 +1,13 @@
-import os
-import requests
-import discord
-import json
-import pytesseract
-import ffmpeg
-import asyncio
-import pyautogui
-from PIL import Image
+import os  # For Bot initialization
+import requests  # For REST API requests
+import discord  # Discord bot commands
+import json  # For json parsing
+import pytesseract  # For Image analysis
+import ffmpeg  # Sounds and videos
+import asyncio  # Sleep function
+import pyautogui  # Automation
+import sys  # Exception catching
+from PIL import Image  # For Image analysis
 
 # from html.parser import HTMLParser
 TOKEN = 'NjUzODk0NDMwNTM2NzYxMzQ0.Xe9opQ.XxkhQLgmzI_-GnNLbCyNrkZKoZg'
@@ -171,31 +172,23 @@ async def GetMarketSyndicateOfferings(fileName):
     SortedTopBuyOrders = sorted(TopBuyOrders, key=lambda x: x[1], reverse=True)
     SortedTopSellOrders = sorted(TopSellOrders, key=lambda x: x[1])
 
-    if len(SortedTopBuyOrders) > MaxTops:
-        for i in range(MaxTops):
-            ResultsString += SortedTopBuyOrders[i][0] + " buys for **" + str(int(SortedTopBuyOrders[i][1])) + "**  (" + \
-                             SortedTopBuyOrders[i][2] + ")\n"
-    else:
-        for i in range(len(SortedTopBuyOrders)):
-            ResultsString += SortedTopBuyOrders[i][0] + " buys for **" + str(int(SortedTopBuyOrders[i][1])) + "**  (" + \
-                             SortedTopBuyOrders[i][2] + ")\n"
+    ResultsString = await AddEachToString(SortedTopBuyOrders, MaxTops, " sell for **", "**  (", ResultsString)
 
     ResultsString += "\n"
 
-    if len(SortedTopSellOrders) > MaxTops:
-        for i in range(MaxTops):
-            ResultsString += SortedTopSellOrders[i][0] + " sells for **" + str(
-                int(SortedTopSellOrders[i][1])) + "**  (" + \
-                             SortedTopSellOrders[i][2] + ")\n"
-    else:
-        for i in range(len(SortedTopSellOrders)):
-            ResultsString += SortedTopSellOrders[i][0] + " sells for **" + str(
-                int(SortedTopSellOrders[i][1])) + "**  (" + \
-                             SortedTopSellOrders[i][2] + ")\n"
+    ResultsString = await AddEachToString(SortedTopSellOrders, MaxTops, " sell for **", "**  (", ResultsString)
+
     return ResultsString
 
 
-
+async def AddEachToString(Dictionary, MaxTops, Text1, Text2, ResultsString):
+    if len(Dictionary) > MaxTops:
+        for i in range(MaxTops):
+            ResultsString += Dictionary[i][0] + Text1 + str(int(Dictionary[i][1])) + Text2 + Dictionary[i][2] + ")\n"
+    else:
+        for i in range(len(Dictionary)):
+            ResultsString += Dictionary[i][0] + Text1 + str(int(Dictionary[i][1])) + Text2 + Dictionary[i][2] + ")\n"
+    return ResultsString
 
 
 # TERRARIA#
@@ -272,28 +265,27 @@ async def on_message(message):
         # print(ParsedData)
         await message.delete()
 
-    if message.content == "test":
-        print("")
-
     if len(message.content.split()) > 1:
 
         if message.content.split()[0] == "bot":
             if message.content.split()[1] == "help":
                 await DeleteMessageAfterDelay(message, 0.5)
-                await DeleteMessageAfterDelay(await message.channel.send("General:\n"
-                                                                         "  bot help : Get all available bot commands\n"
-                                                                         "\n"
-                                                                         "Warframe:\n"
-                                                                         "  wf invasions : Get Invasions Data \n"
-                                                                         "  wf cycles : Get World Cycles Data \n"
-                                                                         "  wf syndicate:\n"
-                                                                         "      <syndicate> weapons: Get <syndicate> Weapons Buy/Sell Orders from Warframe Market \n"
-                                                                         "      <syndicate> offerings: Get <syndicate> Augments and Arch parts Buy/Sell Orders from Warframe Market \n"
-                                                                         "  wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market\n"
-                                                                         "\n"
-                                                                         "Local Use Only:\n"
-                                                                         "  p list : Get all available sounds to play\n"
-                                                                         "  p <sound> : Play sound in your voice channel"),30)
+                await DeleteMessageAfterDelay(await message.channel.send(
+                    "General:\n"
+                    "  bot help : Get all available bot commands\n"
+                    "\n"
+                    "Warframe:\n"
+                    "  wf invasions : Get Invasions Data \n"
+                    "  wf cycles : Get World Cycles Data \n"
+                    "  wf syndicate:\n"
+                    "      <syndicate> weapons: Get <syndicate> Weapons Buy/Sell Orders from Warframe Market \n"
+                    "      <syndicate> offerings: Get <syndicate> Augments and Arch parts Buy/Sell Orders from Warframe Market \n"
+                    "  wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market\n"
+                    "\n"
+                    "Local Use Only:\n"
+                    "  p list : Get all available sounds to play\n"
+                    "  p <sound> : Play sound in your voice channel"),
+                                              30)
             else:
                 await DeleteMessageAfterDelay(await message.channel.send("No such Bot Command.\n"
                                                                          "Use bot help for available commands."), 5)
@@ -389,66 +381,36 @@ async def on_message(message):
             elif message.content.split()[1] == "syndicate":
                 Syndicates = ["meridian", "arbiters", "suda", "perrin", "veil", "loka"]
                 if len(message.content.split()) > 2:
-                    if message.content.split()[2] and message.content.split() > 3 in Syndicates:
+                    if (message.content.split()[2] in Syndicates) and (len(message.content.split()) > 3):
 
                         if message.content.split()[3] == "weapons":
-                            if message.content.split()[2] == "meridian":
-                                ResultsString = await GetMarketSyndicateWeapons("weapons_meridian.txt")
-                            elif message.content.split()[2] == "arbiters":
-                                ResultsString = await GetMarketSyndicateWeapons("weapons_arbiters.txt")
-                            elif message.content.split()[2] == "suda":
-                                ResultsString = await GetMarketSyndicateWeapons("weapons_suda.txt")
-                            elif message.content.split()[2] == "perrin":
-                                ResultsString = await GetMarketSyndicateWeapons("weapons_perrin.txt")
-                            elif message.content.split()[2] == "veil":
-                                ResultsString = await GetMarketSyndicateWeapons("weapons_veil.txt")
-                            elif message.content.split()[2] == "loka":
-                                ResultsString = await GetMarketSyndicateWeapons("weapons_loka.txt")
-
+                            ResultsString = await GetMarketSyndicateWeapons("weapons_" + message.content.split()[2] + ".txt")
                             await DeleteMessageAfterDelay(message, 0.5)
                             await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 120)
-
                         elif message.content.split()[3] == "offerings":
-                            if message.content.split()[2] == "meridian":
-                                ResultsString = await GetMarketSyndicateOfferings("offerings_meridian.txt")
-                            elif message.content.split()[2] == "arbiters":
-                                ResultsString = await GetMarketSyndicateOfferings("offerings_arbiters.txt")
-                            elif message.content.split()[2] == "suda":
-                                ResultsString = await GetMarketSyndicateOfferings("offerings_suda.txt")
-                            elif message.content.split()[2] == "perrin":
-                                ResultsString = await GetMarketSyndicateOfferings("offerings_perrin.txt")
-                            elif message.content.split()[2] == "veil":
-                                ResultsString = await GetMarketSyndicateOfferings("offerings_veil.txt")
-                            elif message.content.split()[2] == "loka":
-                                ResultsString = await GetMarketSyndicateOfferings("offerings_loka.txt")
-
+                            ResultsString = await GetMarketSyndicateOfferings("offerings_" + message.content.split()[2] + ".txt")
                             await DeleteMessageAfterDelay(message, 0.5)
                             await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 120)
-
                         else:
                             await DeleteMessageAfterDelay(message, 5)
-                            await DeleteMessageAfterDelay(await message.channel.send("No such Warframe command.\n"
-                                                                                     "Check bot help for available commands"),
-                                                          5)
+                            await DeleteMessageAfterDelay(await message.channel.send("No such Warframe command.\nCheck bot help for available commands"), 5)
                     else:
                         await DeleteMessageAfterDelay(message, 0.5)
                         await DeleteMessageAfterDelay(await message.channel.send("No such Syndicate"), 10)
                 else:
                     await DeleteMessageAfterDelay(message, 0.5)
-                    await DeleteMessageAfterDelay(await message.channel.send("Wrong input. use wf syndicate <syndicate> <action> format."), 10)
-
-
+                    await DeleteMessageAfterDelay(
+                        await message.channel.send("Wrong input. use wf syndicate <syndicate> <action> format."), 10)
 
 
             elif message.content.split()[1] == "market":
                 if len(message.content.split()) > 2:
                     await DeleteMessageAfterDelay(message, 0.5)
                     try:
-                        Embed, ReturnString, Buys, Sells = await GetMarketOrders(message.content.split()[2])
-                        if ReturnString != "0":
-                            await DeleteMessageAfterDelay(await message.channel.send(embed=Embed), 60)
+                        Embed, Buys, Sells = await GetMarketOrders(message.content.split()[2])
+                        await DeleteMessageAfterDelay(await message.channel.send(embed=Embed), 60)
                     except:
-                        await DeleteMessageAfterDelay(await message.channel.send("Error!"), 10)
+                        await DeleteMessageAfterDelay(await message.channel.send(str(sys.exc_info()) + " Error!"), 10)
                 else:
                     await DeleteMessageAfterDelay(
                         await message.channel.send("Error! Please use format: wf market <item>"), 10)
