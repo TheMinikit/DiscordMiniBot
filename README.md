@@ -37,3 +37,8 @@ v0.8
   Added new command: wf syndicate <syndicate> weapons (displays market offers for <syndicate> weapons)
   Added new command: wf syndicate <syndicate> offerings (displays market offers for <syndicate> offerings)
   
+v0.9 03/11/2020
+  Minor optimization
+  Added all 6 syndicate weapons offerings
+  Added Red Veil syndicate offerings list
+  
