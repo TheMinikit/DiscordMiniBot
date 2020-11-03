@@ -13,11 +13,11 @@ v0.2 26/08/2020
 
 v0.3 27/08/2020
   +Perrin Sequence Command (wf perrin)
-  +Market Prices/Orders Commands (wf market <weapon>)
+  +Market Prices/Orders Commands (wf market "weapon")
 
 
 v0.4 04/09/2020
-  +Play Sound Command (p <sound>)
+  +Play Sound Command (p "sound")
   +Terraria "saysounds" mode command (TERRARIA)
   
 v0.5
@@ -34,11 +34,11 @@ v0.7
   
 v0.8
   Changed perrin command to syndicate
-  Added new command: wf syndicate <syndicate> weapons (displays market offers for <syndicate> weapons)
-  Added new command: wf syndicate <syndicate> offerings (displays market offers for <syndicate> offerings)
+  Added new command: wf syndicate "syndicate" weapons (displays market offers for "syndicate" weapons)
+  Added new command: wf syndicate "syndicate" offerings (displays market offers for "syndicate" offerings)
   
 v0.9 03/11/2020
-  Minor optimization
+  Minor optimization\n
   Added all 6 syndicate weapons offerings
   Added Red Veil syndicate offerings list
   
