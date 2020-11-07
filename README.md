@@ -42,3 +42,9 @@ v0.9 03/11/2020
   <br>Added all 6 syndicate weapons offerings
   <br>Added Red Veil syndicate offerings list
   <br>Beautified Readme
+  
+v1.0 07/11/2020
+  <br>Removed unused commands, methods and libraries
+  <br>Corrected typos
+  <br>Fixed wf invasions command
+  <br>Token moved to env
