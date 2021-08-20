@@ -39,7 +39,7 @@ Latron 4
 Panthera 4
 Paris 5
 Rubico 4
-Soma 4 4
+Soma 4
 Stradavar 4
 Sybaris 4
 Tenora 4
@@ -69,7 +69,7 @@ Ankyros 3
 Bo 3
 Dakra 3
 Destreza 3
-Dual Kamas 3
+Dual 3
 Fang 3
 Fragor 3
 Galatine 3
@@ -79,7 +79,7 @@ Guandao 3
 Karyst 3
 Kogake 3
 Kronen 3
-Nami Skyla 3
+Nami 3
 Nikana 3
 Ninkondi 3
 Orthos 3
@@ -87,7 +87,7 @@ Pangolin 3
 Reaper 3
 Redeemer 3
 Scindo 3
-Silva & Aegis 4
+Silva 4
 Tekko 3
 Tipedo 3
 Venka 3
@@ -95,5 +95,5 @@ Carrier 4
 Dethcube 4
 Helios 4
 Wyrm 4
-Kavasa Collar 3
+Kavasa 3
 Odonata 4
