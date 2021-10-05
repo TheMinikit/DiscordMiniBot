@@ -3,16 +3,14 @@ import requests  # For REST API requests
 import discord  # Discord bot commands
 import json  # For json parsing
 import pytesseract  # For Image analysis
-# import ffmpeg  # Sounds and videos
 import asyncio  # Sleep function
-import pyautogui  # Automation
 import sys  # Exception catching
 import pandas  # Excel output
 from PIL import Image  # For Image analysis
 from dotenv import load_dotenv
 import zipfile  # For Zip file processing
 import io  # Converting Bytes to Zip
-# from html.parser import HTMLParser
+import mwmu as marketutils # Personal module for warframe market
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -27,189 +25,6 @@ async def DeleteMessageAfterDelay(message, delay):
     await message.delete()
 
 
-# WARFRAME #
-async def GetMarketOrders(request):
-    Req = requests.get('https://api.warframe.market/v1/items/' + request + '/orders')
-    Content = Req.content
-    if Req.status_code != 404:
-        try:
-            RawData = json.loads(Content)
-            DataPayload = RawData["payload"]
-            Orders = DataPayload["orders"]
-            Embed = discord.Embed(title=request, color=0x000475)
-            BuyOrders = {}
-            SellOrders = {}
-            BuyString = ""
-            SellString = ""
-            MaxOrders = 5
-            nickname = ""
-            price = 0
-            type = ""
-            rank = -1
-            for Order in Orders:
-                try:
-                    if Order["user"]["status"] == "ingame":
-                        nickname = Order["user"]["ingame_name"]
-                        price = int(Order["platinum"])
-
-                        try:
-                            rank = Order["mod_rank"]
-                        except:
-                            rank = -1
-                        type = Order["order_type"]
-                        if type == "buy":
-                            if nickname in BuyOrders:
-                                if price > BuyOrders[nickname][0]:
-                                    BuyOrders[nickname] = (price, rank)
-                            else:
-                                BuyOrders[nickname] = (price, rank)
-                        elif type == "sell":
-                            if nickname in SellOrders:
-                                if price > SellOrders[nickname][0]:
-                                    SellOrders[nickname] = (price, rank)
-                            else:
-                                SellOrders[nickname] = (price, rank)
-                except:
-                    print(str(sys.exc_info()), "\nParsing Error: ", Order)
-
-            SortedBuyOrders = sorted(BuyOrders.items(), key=lambda x: x[1][0], reverse=True)
-            SortedSellOrders = sorted(SellOrders.items(), key=lambda x: x[1][0])
-
-            if len(SortedBuyOrders) > MaxOrders:
-                BuyOrdersAmount = MaxOrders
-            else:
-                BuyOrdersAmount = len(SortedBuyOrders)
-
-            if len(SortedSellOrders) > MaxOrders:
-                SellOrdersAmount = MaxOrders
-            else:
-                SellOrdersAmount = len(SortedSellOrders)
-
-            MaxOrdersAmount = 0
-            if BuyOrdersAmount > SellOrdersAmount:
-                MaxOrdersAmount = BuyOrdersAmount
-            else:
-                MaxOrdersAmount = SellOrdersAmount
-            for i in range(MaxOrdersAmount):
-                if BuyOrdersAmount > i:
-                    BuyString += "**" + str(int(SortedBuyOrders[i][1][0])) + "** " + str(
-                        SortedBuyOrders[i][0]) + "  (Rank " + str(SortedBuyOrders[i][1][1]) + ")\n\n"
-                if SellOrdersAmount > i:
-                    SellString += "**" + str(int(SortedSellOrders[i][1][0])) + "**  " + str(
-                        SortedSellOrders[i][0]) + "  (Rank " + str(SortedSellOrders[i][1][1]) + ")\n\n"
-
-            Embed.add_field(name="**Buys**", value=BuyString, inline=True)
-            Embed.add_field(name="**Sells**", value=SellString, inline=True)
-            return (Embed, (SortedBuyOrders, request), (SortedSellOrders, request))
-        except:
-            print("Caught Error in order: ", request)
-
-    Embed = discord.Embed(title=request, color=0x000475)
-    return (Embed, (0, "0"), (0, "0"))
-
-
-async def GetMarketSyndicateWeapons(fileName):
-    MaxTops = 4
-    Items = []
-    TopBuyOrders = []
-    TopSellOrders = []
-    ResultsString = ""
-
-    weaponsFile = open("Warframe/Syndicates" + fileName, "r")
-    for line in weaponsFile:
-        Items.append(line.rstrip())
-
-    for Item in Items:
-        Embed, Buys, Sells = await GetMarketOrders(Item)
-
-        for i in range(len(Buys[0])):
-            TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1][0], Buys[1]))
-        for i in range(len(Sells[0])):
-            TopSellOrders.append((Sells[0][i][0], Sells[0][i][1][0], Sells[1]))
-
-    SortedTopBuyOrders = sorted(TopBuyOrders, key=lambda x: x[1][0], reverse=True)
-    SortedTopSellOrders = sorted(TopSellOrders, key=lambda x: x[1][0])
-
-    ResultsString += await AddEachToString(SortedTopBuyOrders, MaxTops, " buys for **")
-
-    ResultsString += "\n"
-
-    ResultsString += await AddEachToString(SortedTopSellOrders, MaxTops, " sells for **")
-
-    return ResultsString
-
-
-async def GetMarketSyndicateOfferings(fileName):
-    MaxTops = 10
-    Items = []
-    TopBuyOrders = []
-    TopSellOrders = []
-    ResultsString = ""
-
-    offeringsFile = open("Warframe/Syndicates" + fileName, "r")
-    for line in offeringsFile:
-        Items.append(line.rstrip())
-
-    print("")
-    print("")
-    for Item in Items:
-        await asyncio.sleep(0.1)
-        Embed, Buys, Sells = await GetMarketOrders(Item)
-        print(str((Items.index(Item)) + 1) + "/" + str(len(Items)) + " " + Item)
-        for i in range(len(Buys[0])):
-            TopBuyOrders.append((Buys[0][i][0], Buys[0][i][1][0], Buys[0][i][1][1], Buys[1]))
-        for i in range(len(Sells[0])):
-            TopSellOrders.append((Sells[0][i][0], Sells[0][i][1][0], Sells[0][i][1][1], Sells[1]))
-
-    SortedTopBuyOrders = sorted(TopBuyOrders, key=lambda x: x[1], reverse=True)
-    SortedTopSellOrders = sorted(TopSellOrders, key=lambda x: x[1])
-
-    ResultsString += await AddEachToString(SortedTopBuyOrders, MaxTops, " buys **")
-
-    ResultsString += "\n"
-
-    ResultsString += await AddEachToString(SortedTopSellOrders, MaxTops, " sells **")
-
-    return ResultsString
-
-
-async def AddEachToString(Dictionary, MaxTops, Text1):
-    ResultsString = ""
-    if len(Dictionary) > MaxTops:
-        for i in range(MaxTops):
-            ResultsString += Dictionary[i][0] + Text1 + str(Dictionary[i][3]) + "** (Rank: " + str(
-                Dictionary[i][2]) + ") for **" + str(Dictionary[i][1]) + "**\n"
-    else:
-        for i in range(len(Dictionary)):
-            ResultsString += Dictionary[i][0] + Text1 + str(Dictionary[i][3]) + "** (Rank: " + str(
-                Dictionary[i][2]) + ") for **" + str(Dictionary[i][1]) + "**\n"
-    return ResultsString
-
-
-# TERRARIA #
-async def ScreenshotAndSound(message, oldString):
-    myScreenshot = pyautogui.screenshot()
-    myScreenshot.save("one.png")
-    img = Image.open("one.png")
-    # newImg = img.crop((0,696,200,715))
-    newImg = img.crop((0, 696, 200, 710))
-    newImg.save("two.png")
-    ScreenshotString = pytesseract.image_to_string(newImg)
-    ScreenshotString = ScreenshotString[:-1]
-    if oldString != ScreenshotString and "<" in ScreenshotString and ">" in ScreenshotString:
-        try:
-            print("ScreenshotString", ScreenshotString)
-            soundfile = ScreenshotString.split()[-1]
-            oldString = ScreenshotString
-            await PlaySound(message, soundfile)
-            await asyncio.sleep(5)
-            # await print("Ready")
-            return oldString
-        except:
-            print("Error")
-    return oldString
-
-
 # PANDAS #
 def pandasExcelMapWarframeFrame(x):
     if isinstance(x, int):
@@ -220,6 +35,7 @@ def pandasExcelMapWarframeFrame(x):
         else:
             return 'background-color: transparent'
 
+
 def pandasExcelMapWarframeWeapon(x):
     if isinstance(x, int):
         if x > 20:
@@ -228,24 +44,6 @@ def pandasExcelMapWarframeWeapon(x):
             return 'background-color: #EDC374'
         else:
             return 'background-color: transparent'
-
-
-# @bot.command(name="dum")
-async def PlaySound(message, soundfile):
-    voice_channel = message.author.voice.channel
-    channel = None
-    # print(client.voice_clients)
-    if voice_channel != None:
-        channel = voice_channel.name
-        vc = await voice_channel.connect()
-        vc.play(discord.FFmpegPCMAudio(executable="C:/Users/XPS/Desktop/Discord/Python/ffmpeg/bin/ffmpeg.exe",
-                                       source="C:/Users/XPS/Desktop/Discord/Python/Sounds/" + soundfile + ".wav"))
-        while vc.is_playing():
-            await asyncio.sleep(.5)
-        await vc.disconnect()
-    else:
-        await message.channel.send(str(message.author.name) + "is not in a channel.")
-    await message.delete()
 
 
 @client.event
@@ -259,30 +57,6 @@ async def on_message(message):
 
     #  Channel check. Message must come from 'bot' channel
     if message.channel.id == 865532738688647168:
-
-        if message.content == "saysounds":
-            oldString = ""
-            while (True):
-                if oldString == "<Kit> goodnightbot":
-                    break
-                oldString = await ScreenshotAndSound(message, oldString)
-                await asyncio.sleep(.25)
-
-        if message.content == "goodnight":
-            await message.delete()
-            await client.logout()
-
-        if message.content == "terra":
-            Req = requests.get('https://terraria.gamepedia.com/api.php?action=parse&format=json&page=Titanium_Crate')
-            Content = Req.content
-            RewardsList = []
-            RewardsString = ""
-            Reward = " "
-            PageData = json.loads(Content)
-            ParseData = PageData["parse"]["text"]["*"]
-            # ParsedData = HTMLParser.feed(ParseData)
-            # print(ParsedData)
-            await message.delete()
 
         if len(message.content.split()) > 1:
 
@@ -309,18 +83,6 @@ async def on_message(message):
                     await DeleteMessageAfterDelay(await message.channel.send("No such Bot Command.\n"
                                                                              "Use bot help for available commands."), 5)
 
-            elif message.content.split()[0] == "p":
-                if message.content.split()[1] == "list":
-                    FileList = os.listdir("C:/Users/XPS/Desktop/Discord/Python/Sounds")
-                    FileListString = ""
-                    for File in FileList:
-                        FileListString += File + "\n"
-                    await message.channel.send(FileListString)
-                else:
-                    soundfile = message.content.split()[1]
-                    await PlaySound(message, soundfile)
-                    await DeleteMessageAfterDelay(message, 0.5)
-
             elif message.content.split()[0] == "wf":
 
                 if message.content.split()[1] == "invasions":
@@ -331,7 +93,7 @@ async def on_message(message):
                     Reward = " "
                     OuterList = json.loads(Content)
                     for Item in OuterList:
-                        if Item["completed"] == False:
+                        if not Item["completed"]:
                             RewardsString += str(Item["node"]) + "  " + str(round(Item["completion"], 1)) + "%\n"
                             try:
                                 RewardData = Item["attackerReward"]["countedItems"][0]
@@ -407,13 +169,13 @@ async def on_message(message):
                         if (message.content.split()[2] in Syndicates) and (len(message.content.split()) > 3):
 
                             if message.content.split()[3] == "weapons":
-                                ResultsString = await GetMarketSyndicateWeapons(
+                                ResultsString = await marketutils.get_market_syndicate_weapons(
                                     "weapons_" + message.content.split()[2] + ".txt")
                                 await DeleteMessageAfterDelay(message, 0.5)
                                 await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 120)
                             elif message.content.split()[3] == "offerings":
-                                ResultsString = await GetMarketSyndicateOfferings(
-                                    "offerings_" + message.content.split()[2] + ".txt")
+                                ResultsString = await marketutils.get_market_syndicate_offerings(
+                                    "offerings_" + message.content.split()[2] + ".txt", message)
                                 await DeleteMessageAfterDelay(message, 0.5)
                                 await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 120)
                             else:
@@ -432,7 +194,7 @@ async def on_message(message):
                     if len(message.content.split()) > 2:
                         await DeleteMessageAfterDelay(message, 0.5)
                         try:
-                            Embed, Buys, Sells = await GetMarketOrders(message.content.split()[2])
+                            Embed, Buys, Sells = await marketutils.get_market_orders(message.content.split()[2])
                             await DeleteMessageAfterDelay(await message.channel.send(embed=Embed), 60)
                         except:
                             await DeleteMessageAfterDelay(await message.channel.send(str(sys.exc_info()) + " Error!"), 10)
@@ -449,42 +211,42 @@ async def on_message(message):
                         primecheckmessage = await message.channel.send("Starting Prime Check...")
                         print("Starting Prime Check...")
 
-                        singleInventoryCellSize = 169
-                        singleInventorySpaceSizeX = 42
-                        singleInventorySpaceSizeY = 31
-                        inventoryOffsetX = 97
-                        inventoryOffsetY = 199
-                        xPos = inventoryOffsetX
-                        yPos = inventoryOffsetY
+                        single_inventory_cell_size = 169
+                        single_inventory_space_size_x = 42
+                        single_inventory_space_size_y = 31
+                        inventory_offset_x = 97
+                        inventory_offset_y = 199
+                        x_pos = inventory_offset_x
+                        y_pos = inventory_offset_y
 
                         images = []
                         ImageTextData = []
                         primes = {}
                         warframes = []
                         dictionary = {}
-                        croppedImages = []
+                        cropped_images = []
 
-                        WarframesArray = []
-                        WeaponsArray = []
+                        warframes_array = []
+                        weapons_array = []
 
-                        TopSellPrice = 0
-                        TopSellPlayer = ""
-                        TopBuyPrice = 0
-                        TopBuyPlayer = ""
+                        top_sell_price = 0
+                        top_sell_player = ""
+                        top_buy_price = 0
+                        top_buy_player = ""
 
-                        TopWarframeSellPriceArray = []
-                        TopWarframeSellPlayerArray = []
-                        TopWarframeBuyPriceArray = []
-                        TopWarframeBuyPlayerArray = []
+                        top_warframe_sell_price_array = []
+                        top_warframe_sell_player_array = []
+                        top_warframe_buy_price_array = []
+                        top_warframe_buy_player_array = []
 
-                        TopWeaponSellPriceArray = []
-                        TopWeaponSellPlayerArray = []
-                        TopWeaponBuyPriceArray = []
-                        TopWeaponBuyPlayerArray = []
+                        top_weapon_sell_price_array = []
+                        top_weapon_sell_player_array = []
+                        top_weapon_buy_price_array = []
+                        top_weapon_buy_player_array = []
 
-                        Rlimits = [0, 40]
-                        Glimits = [80, 130]
-                        Blimits = [130, 220]
+                        rlimits = [0, 40]
+                        glimits = [80, 130]
+                        blimits = [130, 220]
 
                         # Orange Limits
                         # R = 200 - 250
@@ -496,8 +258,10 @@ async def on_message(message):
                         # G = 79 - 130
                         # B = 130 - 220
 
+                        '''
                         whiteListColors = []
                         whiteListColorsImages = []
+                        '''
 
                         # img = Image.open("Warframe/wfprimetest5.jpg")
                         for imgs in os.listdir("Warframe/Screenshots"):
@@ -505,9 +269,9 @@ async def on_message(message):
                             image = image.convert('RGB')
                             images.append(image)
 
-                        primesFile = open("Warframe/primes.txt", "r")
-                        dictionaryFile = open("Warframe/dictionary.txt", "r")
-                        warframesFile = open("Warframe/warframes.txt", "r")
+                        primes_file = open("Warframe/primes.txt", "r")
+                        dictionary_file = open("Warframe/dictionary.txt", "r")
+                        warframes_file = open("Warframe/warframes.txt", "r")
 
                         print()
                         print(str(len(images)) + " screenshots to read...")
@@ -525,13 +289,13 @@ async def on_message(message):
 
                         try:
 
-                            for prime in primesFile:
+                            for prime in primes_file:
                                 primes[prime[:-3]] = prime[-2]
 
-                            for word in dictionaryFile:
+                            for word in dictionary_file:
                                 dictionary[word.split(' ')[0].strip()] = word.split(' ')[1].strip()
 
-                            for warframe in warframesFile:
+                            for warframe in warframes_file:
                                 warframes.append(warframe.rstrip())
 
                             '''    
@@ -549,29 +313,31 @@ async def on_message(message):
                             '''
 
                             for img in images:
-                                yPos = inventoryOffsetY
+                                y_pos = inventory_offset_y
                                 for i in range(4):
-                                    xPos = inventoryOffsetX
+                                    x_pos = inventory_offset_x
                                     for j in range(6):
-                                        croppedImg = img.crop(
-                                            (xPos, yPos, xPos + singleInventoryCellSize, yPos + singleInventoryCellSize))
-                                        croppedImages.append(croppedImg)
-                                        croppedImg.save("Warframe/Crops/" + str(i) + " " + str(j) + ".jpg")
-                                        xPos += singleInventoryCellSize + singleInventorySpaceSizeX
-                                    yPos += singleInventoryCellSize + singleInventorySpaceSizeY
+                                        cropped_img = img.crop(
+                                            (x_pos, y_pos,
+                                             x_pos + single_inventory_cell_size,
+                                             y_pos + single_inventory_cell_size))
+                                        cropped_images.append(cropped_img)
+                                        cropped_img.save("Warframe/Crops/" + str(i) + " " + str(j) + ".jpg")
+                                        x_pos += single_inventory_cell_size + single_inventory_space_size_x
+                                    y_pos += single_inventory_cell_size + single_inventory_space_size_y
 
                             print()
                             print("Coloring to Black & White...")
                             await primecheckmessage.edit(content="Coloring to Black & White...")
 
                             counter = 0
-                            for cropImage in croppedImages:
+                            for cropImage in cropped_images:
                                 for i in range(cropImage.size[0]):
                                     for j in range(cropImage.size[1]):
                                         # if cropImage.getpixel((i,j)) in whiteListColors:
                                         r, g, b = cropImage.getpixel((i, j))
-                                        if (Rlimits[0] <= r <= Rlimits[1]) and (Glimits[0] <= g <= Glimits[1]) and (
-                                                Blimits[0] <= b <= Blimits[1]):
+                                        if (rlimits[0] <= r <= rlimits[1]) and (glimits[0] <= g <= glimits[1]) and (
+                                                blimits[0] <= b <= blimits[1]):
                                             cropImage.putpixel((i, j), (0, 0, 0))
                                         else:
                                             cropImage.putpixel((i, j), (255, 255, 255))
@@ -579,57 +345,62 @@ async def on_message(message):
                                 cropImage.save("Warframe/Crops/" + str(counter) + ".jpg")
                                 counter = counter + 1
 
-                            croppedBWImagecounter = 0
+                            cropped_bw_imagecounter = 0
 
                             print()
-                            print("Reading text from cropped B&W images...(0/" + str(len(croppedImages)) + ")")
-                            await primecheckmessage.edit(content="Reading text from cropped B&W images...(0/" + str(len(croppedImages)) + ")")
+                            print("Reading text from cropped B&W images...(0/" + str(len(cropped_images)) + ")")
+                            await primecheckmessage.edit(content="Reading text from cropped B&W images...(0/" +
+                                                                 str(len(cropped_images)) + ")")
 
-                            for croppedBWImage in croppedImages:
-                                CroppedImgString = pytesseract.image_to_string(croppedBWImage)
-                                CroppedImgString = CroppedImgString.rstrip()
-                                CroppedImgString = CroppedImgString.replace(' _', '')
-                                CroppedImgString = CroppedImgString.replace('4 ', '')
-                                CroppedImgString = CroppedImgString.replace('\n', ' ')
-                                CroppedImgString = CroppedImgString.replace('\t', ' ')
-                                CroppedImgString = CroppedImgString.replace(' ', '_')
-                                CroppedImgString = CroppedImgString.lower()
-                                for string in CroppedImgString.split('_'):
+                            for croppedBWImage in cropped_images:
+                                cropped_img_string = pytesseract.image_to_string(croppedBWImage)
+                                cropped_img_string = cropped_img_string.rstrip()
+                                cropped_img_string = cropped_img_string.replace(' _', '')
+                                cropped_img_string = cropped_img_string.replace('4 ', '')
+                                cropped_img_string = cropped_img_string.replace('\n', ' ')
+                                cropped_img_string = cropped_img_string.replace('\t', ' ')
+                                cropped_img_string = cropped_img_string.replace(' ', '_')
+                                cropped_img_string = cropped_img_string.lower()
+                                for string in cropped_img_string.split('_'):
                                     if string in dictionary.keys():
-                                        CroppedImgString = CroppedImgString.replace(string, dictionary[string])
-                                if "blueprint" in CroppedImgString.split('_'):
-                                    if CroppedImgString.split('_')[CroppedImgString.split('_').index("blueprint") - 1] != "prime" and CroppedImgString.split('_')[CroppedImgString.split('_').index("blueprint") - 1] != "collar":
-                                        CroppedImgString = CroppedImgString.replace('_blueprint', '')
-                                ImageTextData.append(CroppedImgString)
-                                croppedBWImagecounter = croppedBWImagecounter + 1
-                                print("Reading text from cropped B&W images...(" + str(croppedBWImagecounter) + "/" + str(len(croppedImages)) + ")")
-                                await primecheckmessage.edit(content="Reading text from cropped B&W images...(" + str(croppedBWImagecounter) + "/" + str(len(croppedImages)) + ")")
+                                        cropped_img_string = cropped_img_string.replace(string, dictionary[string])
+                                if "blueprint" in cropped_img_string.split('_'):
+                                    if cropped_img_string.split('_')[cropped_img_string.split('_').index("blueprint") - 1] != "prime" and cropped_img_string.split('_')[cropped_img_string.split('_').index("blueprint") - 1] != "collar":
+                                        cropped_img_string = cropped_img_string.replace('_blueprint', '')
+                                ImageTextData.append(cropped_img_string)
+                                cropped_bw_imagecounter = cropped_bw_imagecounter + 1
+                                print("Reading text from cropped B&W images...(" + str(cropped_bw_imagecounter) +
+                                      "/" + str(len(cropped_images)) + ")")
+
+                                await primecheckmessage.edit(content="Reading text from cropped B&W images...(" +
+                                                                     str(cropped_bw_imagecounter) +
+                                                                     "/" + str(len(cropped_images)) + ")")
 
                             print()
                             print("Checking for sets...")
                             await primecheckmessage.edit(content="Checking for sets...")
 
-                            repeatsNum = 0
-                            repeatsName = ImageTextData[0].split('_')[0]
+                            repeats_num = 0
+                            repeats_name = ImageTextData[0].split('_')[0]
 
                             for i in range(len(ImageTextData)):
                                 if ImageTextData[i].split('_')[0].capitalize() in primes:
-                                    print(ImageTextData[i].split('_')[0] + " " + repeatsName)
-                                    if ImageTextData[i].split('_')[0] == repeatsName:
-                                        repeatsNum += 1
+                                    print(ImageTextData[i].split('_')[0] + " " + repeats_name)
+                                    if ImageTextData[i].split('_')[0] == repeats_name:
+                                        repeats_num += 1
                                     else:
-                                        print("else:" + primes[repeatsName.capitalize()] + " " + str(repeatsNum))
-                                        if primes[repeatsName.capitalize()] == str(repeatsNum):
-                                            if repeatsName.capitalize() == "Dual":
+                                        print("else:" + primes[repeats_name.capitalize()] + " " + str(repeats_num))
+                                        if primes[repeats_name.capitalize()] == str(repeats_num):
+                                            if repeats_name.capitalize() == "Dual":
                                                 ImageTextData.insert(i, "dual_kamas_prime_set")
-                                            elif repeatsName.capitalize() == "Silva":
+                                            elif repeats_name.capitalize() == "Silva":
                                                 ImageTextData.insert(i, "silva_and_aegis_prime_set")
-                                            elif repeatsName.capitalize() == "Nami":
+                                            elif repeats_name.capitalize() == "Nami":
                                                 ImageTextData.insert(i, "nami_skyla_prime_set")
                                             else:
-                                                ImageTextData.insert(i, repeatsName + "_prime_set")
-                                        repeatsName = ImageTextData[i].split('_')[0]
-                                        repeatsNum = 1
+                                                ImageTextData.insert(i, repeats_name + "_prime_set")
+                                        repeats_name = ImageTextData[i].split('_')[0]
+                                        repeats_num = 1
 
                             print()
                             print("Getting market orders...")
@@ -639,56 +410,56 @@ async def on_message(message):
                                 try:
                                     print(str(i + 1) + "/" + str(len(ImageTextData)) + "  " + str(ImageTextData[i]))
                                     await primecheckmessage.edit(content="Getting market orders... (" + str(i + 1) + "/" + str(len(ImageTextData)) + ")")
-                                    Embed, BuysReq, SellsReq = await GetMarketOrders(ImageTextData[i])
+                                    Embed, BuysReq, SellsReq = await marketutils.get_market_orders(ImageTextData[i])
                                     await asyncio.sleep(0.3)
-                                    TopBuyPrice = 0
-                                    TopBuyPlayer = "< None >"
-                                    TopSellPrice = 0
-                                    TopSellPlayer = "< None >"
+                                    top_buy_price = 0
+                                    top_buy_player = "< None >"
+                                    top_sell_price = 0
+                                    top_sell_player = "< None >"
                                     Buys, BRequest = BuysReq
                                     for player, (price, rank) in Buys:
-                                        if TopBuyPrice == 0:
-                                            TopBuyPrice = price
-                                            TopBuyPlayer = player
-                                        elif price > TopBuyPrice:
-                                            TopBuyPrice = price
-                                            TopBuyPlayer = player
+                                        if top_buy_price == 0:
+                                            top_buy_price = price
+                                            top_buy_player = player
+                                        elif price > top_buy_price:
+                                            top_buy_price = price
+                                            top_buy_player = player
 
                                     Sells, SRequest = SellsReq
                                     for player, (price, rank) in Sells:
-                                        if TopSellPrice == 0:
-                                            TopSellPrice = price
-                                            TopSellPlayer = player
-                                        elif price < TopSellPrice:
-                                            TopSellPrice = price
-                                            TopSellPlayer = player
+                                        if top_sell_price == 0:
+                                            top_sell_price = price
+                                            top_sell_player = player
+                                        elif price < top_sell_price:
+                                            top_sell_price = price
+                                            top_sell_player = player
 
                                     if str(ImageTextData[i].split('_')[0]) in warframes:
-                                        WarframesArray.append(ImageTextData[i])
-                                        TopWarframeBuyPriceArray.append(TopBuyPrice)
-                                        TopWarframeBuyPlayerArray.append(TopBuyPlayer)
-                                        TopWarframeSellPriceArray.append(TopSellPrice)
-                                        TopWarframeSellPlayerArray.append(TopSellPlayer)
+                                        warframes_array.append(ImageTextData[i])
+                                        top_warframe_buy_price_array.append(top_buy_price)
+                                        top_warframe_buy_player_array.append(top_buy_player)
+                                        top_warframe_sell_price_array.append(top_sell_price)
+                                        top_warframe_sell_player_array.append(top_sell_player)
                                     else:
-                                        WeaponsArray.append(ImageTextData[i])
-                                        TopWeaponBuyPriceArray.append(TopBuyPrice)
-                                        TopWeaponBuyPlayerArray.append(TopBuyPlayer)
-                                        TopWeaponSellPriceArray.append(TopSellPrice)
-                                        TopWeaponSellPlayerArray.append(TopSellPlayer)
+                                        weapons_array.append(ImageTextData[i])
+                                        top_weapon_buy_price_array.append(top_buy_price)
+                                        top_weapon_buy_player_array.append(top_buy_player)
+                                        top_weapon_sell_price_array.append(top_sell_price)
+                                        top_weapon_sell_player_array.append(top_sell_player)
                                 except:
                                     print("Encountered Error with: " + str(ImageTextData[i]) + str(sys.exc_info()))
                                     if ImageTextData[i].split('_')[0] in warframes:
-                                        WarframesArray.append(ImageTextData[i])
-                                        TopWarframeBuyPriceArray.append('-')
-                                        TopWarframeBuyPlayerArray.append('-')
-                                        TopWarframeSellPriceArray.append('-')
-                                        TopWarframeSellPlayerArray.append('-')
+                                        warframes_array.append(ImageTextData[i])
+                                        top_warframe_buy_price_array.append('-')
+                                        top_warframe_buy_player_array.append('-')
+                                        top_warframe_sell_price_array.append('-')
+                                        top_warframe_sell_player_array.append('-')
                                     else:
-                                        WeaponsArray.append(ImageTextData[i])
-                                        TopWeaponBuyPriceArray.append('-')
-                                        TopWeaponBuyPlayerArray.append('-')
-                                        TopWeaponSellPriceArray.append('-')
-                                        TopWeaponSellPlayerArray.append('-')
+                                        weapons_array.append(ImageTextData[i])
+                                        top_weapon_buy_price_array.append('-')
+                                        top_weapon_buy_player_array.append('-')
+                                        top_weapon_sell_price_array.append('-')
+                                        top_weapon_sell_player_array.append('-')
 
                             print("Market data collected...")
                             await primecheckmessage.edit(content="Market data collected...")
@@ -706,32 +477,32 @@ async def on_message(message):
                         print("Creating results Excel file...")
                         await primecheckmessage.edit(content="Creating results Excel file...")
 
-                        if len(WeaponsArray) > len(WarframesArray):
-                            for i in range(len(WeaponsArray) - len(WarframesArray)):
-                                WarframesArray.append('')
-                                TopWarframeBuyPriceArray.append('')
-                                TopWarframeBuyPlayerArray.append('')
-                                TopWarframeSellPriceArray.append('')
-                                TopWarframeSellPlayerArray.append('')
+                        if len(weapons_array) > len(warframes_array):
+                            for i in range(len(weapons_array) - len(warframes_array)):
+                                warframes_array.append('')
+                                top_warframe_buy_price_array.append('')
+                                top_warframe_buy_player_array.append('')
+                                top_warframe_sell_price_array.append('')
+                                top_warframe_sell_player_array.append('')
                         else:
-                            for i in range(len(WarframesArray) - len(WeaponsArray)):
-                                WeaponsArray.append('')
-                                TopWeaponBuyPriceArray.append('')
-                                TopWeaponBuyPlayerArray.append('')
-                                TopWeaponSellPriceArray.append('')
-                                TopWeaponSellPlayerArray.append('')
+                            for i in range(len(warframes_array) - len(weapons_array)):
+                                weapons_array.append('')
+                                top_weapon_buy_price_array.append('')
+                                top_weapon_buy_player_array.append('')
+                                top_weapon_sell_price_array.append('')
+                                top_weapon_sell_player_array.append('')
 
-                        df = pandas.DataFrame({'Warframe Name': WarframesArray,
-                                               'Frame Sell Price': TopWarframeSellPriceArray,
-                                               'Frame Sell Player': TopWarframeSellPlayerArray,
-                                               'Frame Buy Price': TopWarframeBuyPriceArray,
-                                               'Frame Buy Player': TopWarframeBuyPlayerArray,
+                        df = pandas.DataFrame({'Warframe Name': warframes_array,
+                                               'Frame Sell Price': top_warframe_sell_price_array,
+                                               'Frame Sell Player': top_warframe_sell_player_array,
+                                               'Frame Buy Price': top_warframe_buy_price_array,
+                                               'Frame Buy Player': top_warframe_buy_player_array,
                                                '': '',
-                                               'Weapon Name': WeaponsArray,
-                                               'Weapon Sell Price': TopWeaponSellPriceArray,
-                                               'Weapon Sell Player': TopWeaponSellPlayerArray,
-                                               'Weapon Buy Price': TopWeaponBuyPriceArray,
-                                               'Weapon Buy Player': TopWeaponBuyPlayerArray})
+                                               'Weapon Name': weapons_array,
+                                               'Weapon Sell Price': top_weapon_sell_price_array,
+                                               'Weapon Sell Player': top_weapon_sell_player_array,
+                                               'Weapon Buy Price': top_weapon_buy_price_array,
+                                               'Weapon Buy Player': top_weapon_buy_player_array})
 
                         writer = pandas.ExcelWriter("PrimeResults.xlsx", engine='xlsxwriter')
                         '''
@@ -774,13 +545,6 @@ async def on_message(message):
                         excelmessage = await message.channel.send(file=discord.File("PrimeResults.xlsx"))
                         await DeleteMessageAfterDelay(primecheckmessage, 5)
                         await DeleteMessageAfterDelay(excelmessage, 60)
-
-                elif message.content.split()[1] == "pandas":
-                    await DeleteMessageAfterDelay(message, 0.5)
-                    df = pandas.read_excel("PandasTest.xlsx")
-                    df_styled = df.style.applymap(pandasExcelMapWarframeFrame, subset=['Frame Sell Price'])
-                    df_styled.to_excel('styled.xlsx', engine='openpyxl', index=False)
-                    print("STYLING DONE")
 
                 else:
                     await DeleteMessageAfterDelay(await message.channel.send("No such Warframe command.\n"
