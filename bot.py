@@ -1,16 +1,17 @@
-import os  # For Bot initialization
-import requests  # For REST API requests
-import discord  # Discord bot commands
-import json  # For json parsing
-import pytesseract  # For Image analysis
-import asyncio  # Sleep function
-import sys  # Exception catching
-import pandas  # Excel output
-from PIL import Image  # For Image analysis
-from dotenv import load_dotenv
-import zipfile  # For Zip file processing
+import os  # Bot initialization
 import io  # Converting Bytes to Zip
-import mwmu as marketutils # Personal module for warframe market
+import sys  # Exception catching
+import mwu  # Personal module for warframe utilities
+import json  # Json parsing
+import lxml.html  # HTML Parsing
+import pandas  # Excel output
+import asyncio  # Sleep function
+import discord  # Discord bot commands
+import zipfile  # For Zip file processing
+import requests  # API requests
+import pytesseract  # Image analysis
+from PIL import Image  # Image analysis
+from dotenv import load_dotenv  # Env module
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -54,7 +55,6 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-
     #  Channel check. Message must come from 'bot' channel
     if message.channel.id == 865532738688647168:
 
@@ -72,13 +72,10 @@ async def on_message(message):
                         "  wf cycles : Get World Cycles Data \n"
                         "  wf syndicate:\n"
                         "      <syndicate> weapons: Get <syndicate> Weapons Buy/Sell Orders from Warframe Market \n"
-                        "      <syndicate> offerings: Get <syndicate> Augments and Arch parts Buy/Sell Orders from Warframe Market \n"
+                        "      <syndicate> offerings: Get <syndicate> Augments and Arch parts"
+                        " Buy/Sell Orders from Warframe Market \n"
                         "  wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market\n"
-                        "\n"
-                        "Local Use Only:\n"
-                        "  p list : Get all available sounds to play\n"
-                        "  p <sound> : Play sound in your voice channel"),
-                                                  30)
+                        "  wf relic <item_name>: Get list of relics which contain the item\n"), 30)
                 else:
                     await DeleteMessageAfterDelay(await message.channel.send("No such Bot Command.\n"
                                                                              "Use bot help for available commands."), 5)
@@ -88,9 +85,7 @@ async def on_message(message):
                 if message.content.split()[1] == "invasions":
                     Req = requests.get('https://api.warframestat.us/pc/invasions')
                     Content = Req.content
-                    RewardsList = []
                     RewardsString = ""
-                    Reward = " "
                     OuterList = json.loads(Content)
                     for Item in OuterList:
                         if not Item["completed"]:
@@ -169,12 +164,12 @@ async def on_message(message):
                         if (message.content.split()[2] in Syndicates) and (len(message.content.split()) > 3):
 
                             if message.content.split()[3] == "weapons":
-                                ResultsString = await marketutils.get_market_syndicate_weapons(
+                                ResultsString = await mwu.get_market_syndicate_weapons(
                                     "weapons_" + message.content.split()[2] + ".txt")
                                 await DeleteMessageAfterDelay(message, 0.5)
                                 await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 120)
                             elif message.content.split()[3] == "offerings":
-                                ResultsString = await marketutils.get_market_syndicate_offerings(
+                                ResultsString = await mwu.get_market_syndicate_offerings(
                                     "offerings_" + message.content.split()[2] + ".txt", message)
                                 await DeleteMessageAfterDelay(message, 0.5)
                                 await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 120)
@@ -188,16 +183,18 @@ async def on_message(message):
                     else:
                         await DeleteMessageAfterDelay(message, 0.5)
                         await DeleteMessageAfterDelay(
-                            await message.channel.send("Wrong input. use wf syndicate <syndicate> <action> format."), 10)
+                            await message.channel.send("Wrong input. use wf syndicate <syndicate> <action> format."),
+                            10)
 
                 elif message.content.split()[1] == "market":
                     if len(message.content.split()) > 2:
                         await DeleteMessageAfterDelay(message, 0.5)
                         try:
-                            Embed, Buys, Sells = await marketutils.get_market_orders(message.content.split()[2])
+                            Embed, Buys, Sells = await mwu.get_market_orders(message.content.split()[2])
                             await DeleteMessageAfterDelay(await message.channel.send(embed=Embed), 60)
                         except:
-                            await DeleteMessageAfterDelay(await message.channel.send(str(sys.exc_info()) + " Error!"), 10)
+                            await DeleteMessageAfterDelay(await message.channel.send(str(sys.exc_info()) + " Error!"),
+                                                          10)
                     else:
                         await DeleteMessageAfterDelay(
                             await message.channel.send("Error! Please use format: wf market <item>"), 10)
@@ -365,7 +362,10 @@ async def on_message(message):
                                     if string in dictionary.keys():
                                         cropped_img_string = cropped_img_string.replace(string, dictionary[string])
                                 if "blueprint" in cropped_img_string.split('_'):
-                                    if cropped_img_string.split('_')[cropped_img_string.split('_').index("blueprint") - 1] != "prime" and cropped_img_string.split('_')[cropped_img_string.split('_').index("blueprint") - 1] != "collar":
+                                    if cropped_img_string.split('_')[
+                                        cropped_img_string.split('_').index("blueprint") - 1] != "prime" and \
+                                            cropped_img_string.split('_')[
+                                                cropped_img_string.split('_').index("blueprint") - 1] != "collar":
                                         cropped_img_string = cropped_img_string.replace('_blueprint', '')
                                 ImageTextData.append(cropped_img_string)
                                 cropped_bw_imagecounter = cropped_bw_imagecounter + 1
@@ -404,13 +404,16 @@ async def on_message(message):
 
                             print()
                             print("Getting market orders...")
-                            await primecheckmessage.edit(content="Getting market orders... (0/" + str(len(ImageTextData)) + ")")
+                            await primecheckmessage.edit(
+                                content="Getting market orders... (0/" + str(len(ImageTextData)) + ")")
 
                             for i in range(len(ImageTextData)):
                                 try:
                                     print(str(i + 1) + "/" + str(len(ImageTextData)) + "  " + str(ImageTextData[i]))
-                                    await primecheckmessage.edit(content="Getting market orders... (" + str(i + 1) + "/" + str(len(ImageTextData)) + ")")
-                                    Embed, BuysReq, SellsReq = await marketutils.get_market_orders(ImageTextData[i])
+                                    await primecheckmessage.edit(
+                                        content="Getting market orders... (" + str(i + 1) + "/" + str(
+                                            len(ImageTextData)) + ")")
+                                    Embed, BuysReq, SellsReq = await mwu.get_market_orders(ImageTextData[i])
                                     await asyncio.sleep(0.3)
                                     top_buy_price = 0
                                     top_buy_player = "< None >"
@@ -510,8 +513,8 @@ async def on_message(message):
                             lambda x: 'background-color: #95FF80' if x > 20 else 'background-color: transparent',
                             subset=['Frame Sell Price'])
                         '''
-                        df = df.style\
-                            .applymap(pandasExcelMapWarframeFrame, subset=['Frame Sell Price'])\
+                        df = df.style \
+                            .applymap(pandasExcelMapWarframeFrame, subset=['Frame Sell Price']) \
                             .applymap(pandasExcelMapWarframeWeapon, subset=['Weapon Sell Price'])
                         df.to_excel(writer, sheet_name="Primes", engine='openpyxl', index=False)
                         worksheet = writer.sheets['Primes']
@@ -546,9 +549,25 @@ async def on_message(message):
                         await DeleteMessageAfterDelay(primecheckmessage, 5)
                         await DeleteMessageAfterDelay(excelmessage, 60)
 
+                elif message.content.split()[1] == "relic":
+                    if len(message.content.split()) == 3:
+                        relic_rewards_list = mwu.parse_relic_rewards_table()
+                        result_string = mwu.find_reward_relics(message.content.split()[2], relic_rewards_list)
+                        if len(result_string) == 0:
+                            result_string = "Could not find relics for '" + message.content.split()[2] + "'"
+
+                        await DeleteMessageAfterDelay(message, 0.5)
+                        await DeleteMessageAfterDelay(await message.channel.send(result_string), 20)
+
+                    else:
+                        await DeleteMessageAfterDelay(message, 0.5)
+                        await DeleteMessageAfterDelay(
+                            await message.channel.send("Wrong input. Please use 'wf relic <item_name>' format."), 10)
+
                 else:
-                    await DeleteMessageAfterDelay(await message.channel.send("No such Warframe command.\n"
-                                                                             "Check bot help for available commands"), 5)
+                    await DeleteMessageAfterDelay(
+                        await message.channel.send("No such Warframe command.\n"
+                                                   "Check bot help for available commands"), 5)
 
 
 client.run(TOKEN)
