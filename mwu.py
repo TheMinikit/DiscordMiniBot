@@ -1,7 +1,7 @@
 """Minikit's Warframe Utilities Module
 
-Discord Bot Module that uses
-warframe.market's API and Warframe's drops table page
+Module for Discord Bot, that uses
+Warframe market's API, Warframestatus's API and Warframe's drops table page
 to get useful data and parse it into
 a convenient way to read and understand
 """
@@ -146,7 +146,7 @@ async def get_market_syndicate_weapons(file_name):
     top_sell_orders = []
     results_string = ""
 
-    weapons_file = open("Warframe/Syndicates" + file_name, "r")
+    weapons_file = open("Warframe/Syndicates/" + file_name, "r")
     for line in weapons_file:
         items.append(line.rstrip())
 
@@ -170,7 +170,7 @@ async def get_market_syndicate_weapons(file_name):
     return results_string
 
 
-async def get_market_syndicate_offerings(file_name, message):
+async def get_market_syndicate_offerings(file_name, message, mode="default"):
     """ Gets all orders for the chosen syndicate weapons
 
     Returns all syndicate offerings orders (buy/sell) from warframe.market in string format\n
@@ -190,6 +190,12 @@ async def get_market_syndicate_offerings(file_name, message):
 
     message : discord_message
             Discord message for visual output of ongoing process
+
+    mode : str
+        Name of the mode (e.g. "chat")
+        Changes the way function creates and outputs the result
+        Chat mode generates a complete message,
+        which can be copy pasted into the Warframe's trade chat
 
     Returns
     -------
@@ -232,11 +238,12 @@ async def get_market_syndicate_offerings(file_name, message):
     sorted_top_buy_orders = sorted(top_buy_orders, key=lambda x: x[1], reverse=True)
     sorted_top_sell_orders = sorted(top_sell_orders, key=lambda x: x[1])
 
-    results_string += await add_each_to_string(sorted_top_buy_orders, max_tops, " buys **")
-
-    results_string += "\n"
-
-    results_string += await add_each_to_string(sorted_top_sell_orders, max_tops, " sells **")
+    if mode == "chat":
+        results_string += await add_each_to_string_chat(sorted_top_buy_orders, max_tops)
+    else:
+        results_string += await add_each_to_string(sorted_top_buy_orders, max_tops, " buys **")
+        results_string += "\n"
+        results_string += await add_each_to_string(sorted_top_sell_orders, max_tops, " sells **")
 
     return results_string
 
@@ -338,8 +345,51 @@ async def add_each_to_string(dictionary, max_tops, buys_or_sells):
     return results_string
 
 
+async def add_each_to_string_chat(dictionary, max_tops):
+    """Concatenation function for the market orders functions
+
+    Concatenates player name, buy/sell, item name, rank and price strings together
+
+    Parameters
+    ----------
+    dictionary : list
+        Orders for the earlier requested items in market orders functions
+
+    max_tops : int
+        Amount of best sell and buy orders (each) to save in the result string
+
+    Returns
+    -------
+    results_string : str
+        Resulting string of player name, buy/sell, item name, rank and price strings
+
+    """
+    results_string = ""
+    if len(dictionary) > max_tops:
+        for i in range(max_tops):
+            if dictionary[i][2] > 0:
+                results_string += "/w " + dictionary[i][0] + " Hello, I am selling [" + str(
+                    dictionary[i][3]).replace('_', ' ').title() + "] (Rank: " + str(
+                    dictionary[i][2]) + ") for " + str(dictionary[i][1]) + " :platinum:\n"
+            else:
+                results_string += "/w " + dictionary[i][0] + " Hello, I am selling [" + str(
+                    dictionary[i][3]).replace('_', ' ').title() + "] for " + str(
+                    dictionary[i][1]) + " :platinum:\n"
+    else:
+        for i in range(len(dictionary)):
+            if dictionary[i][2] > 0:
+                results_string += "/w " + dictionary[i][0] + " Hello, I am selling [" + str(
+                    dictionary[i][3]).replace('_', ' ').title() + "] (Rank: " + str(
+                    dictionary[i][2]) + ") for " + str(dictionary[i][1]) + " :platinum:\n"
+            else:
+                results_string += "/w " + dictionary[i][0] + " Hello, I am selling [" + str(
+                    dictionary[i][3]).replace('_', ' ').title() + "] for " + str(
+                    dictionary[i][1]) + " :platinum:\n"
+    return results_string
+
+
 async def delete_message_after_delay(message, delay):
-    """Deletes discord `message` after `delay`
+    """Deletes discord `message` after `delay` seconds
 
     Function to delete selected message after specific time
 
@@ -354,6 +404,133 @@ async def delete_message_after_delay(message, delay):
     """
     await asyncio.sleep(delay)
     await message.delete()
+
+
+async def get_baro(message):
+    """Gets time left until Void Trader Baro arrives and his arrival location
+
+        Parameters
+        ----------
+        message : discord.message
+            Non-optional. User's sent command message.
+
+        Warning
+        -------
+            Not passing a discord message will result in error.
+        """
+
+    result_string = ""
+    req = requests.get('https://api.warframestat.us/pc/voidTrader')
+    content = req.content
+    void_trader_data = json.loads(content)
+    result_string += "Void Trader arrives to " + void_trader_data["location"] + " in " \
+                     + void_trader_data["startString"]
+    await delete_message_after_delay(message, 0.5)
+    await delete_message_after_delay(await message.channel.send(result_string), 30)
+
+
+async def get_cycles(message):
+    """Gets the information about remaining time on the Plains Of Eidolon, Orb Vallis and Cambion Drift
+
+            Parameters
+            ----------
+            message : discord.message
+                Non-optional. User's sent command message.
+
+            Warning
+            -------
+                Not passing a discord message will result in error.
+            """
+
+    result_string = ""
+    req = requests.get('https://api.warframestat.us/pc/cetusCycle')
+    content = req.content
+    cetus_data = json.loads(content)
+    try:
+
+        if cetus_data["state"] == "day" or cetus_data["state"] == "night":
+            result_string += "Cetus: " + cetus_data["state"].capitalize() + " (" + cetus_data[
+                "shortString"] + ")\n\n"
+        else:
+            result_string += "Cetus Cycle Error."
+
+        req = requests.get('https://api.warframestat.us/pc/vallisCycle')
+        content = req.content
+        vallis_data = json.loads(content)
+        if vallis_data["state"] == "cold" or vallis_data["state"] == "warm":
+            result_string += "Orb Vallis: " + vallis_data["state"].capitalize() + " (" + vallis_data[
+                "shortString"] + ")\n\n"
+        else:
+            result_string += "Orb Vallis Cycle Error."
+
+        req = requests.get('https://api.warframestat.us/pc/cambionCycle')
+        content = req.content
+        cambion_data = json.loads(content)
+        if cambion_data["active"] == "fass":
+            result_string += "Cambion Drift: " + cambion_data["active"].capitalize() + " (" + \
+                             cambion_data["timeLeft"] + " to Vome)"
+        elif cambion_data["active"] == "vome":
+            result_string += "Cambion Drift: " + cambion_data["active"].capitalize() + " (" + \
+                             cambion_data["timeLeft"] + " to Fass)"
+        else:
+            result_string += "Cambion Drift Cycle Error."
+    except:
+        result_string = "Something went wrong on Warframestat.us. Try again in a few moments."
+
+    await delete_message_after_delay(message, 0.5)
+    await delete_message_after_delay(await message.channel.send(result_string), 10)
+
+
+async def get_invasions(message):
+    """Gets the information about invasions (rewards, completion% and location)
+
+                Parameters
+                ----------
+                message : discord.message
+                    Non-optional. User's sent command message.
+
+                Warning
+                -------
+                    Not passing a discord message will result in error.
+                """
+
+    req = requests.get('https://api.warframestat.us/pc/invasions')
+    content = req.content
+    rewards_string = ""
+    outer_list = json.loads(content)
+    for Item in outer_list:
+        if not Item["completed"]:
+            rewards_string += str(Item["node"]) + "  " + str(round(Item["completion"], 1)) + "%\n"
+            try:
+                reward_data = Item["attackerReward"]["countedItems"][0]
+                if reward_data["count"] > 1:
+                    rewards_string += str(reward_data["count"]) + " x " + str(reward_data["key"])
+                else:
+                    rewards_string += str(reward_data["key"])
+
+                    reward_data = Item["defenderReward"]["countedItems"][0]
+                    rewards_string += " and "
+
+                if reward_data["count"] > 1:
+                    rewards_string += str(reward_data["count"]) + " x " + str(reward_data["key"])
+                else:
+                    rewards_string += str(reward_data["key"])
+                rewards_string += "\n"
+
+            except:
+                reward_data = Item["defenderReward"]["countedItems"][0]
+                if reward_data["count"] > 1:
+                    rewards_string += str(reward_data["count"]) + " x " + str(reward_data["key"])
+                else:
+                    rewards_string += str(reward_data["key"])
+                rewards_string += "\n"
+            rewards_string += "\n"
+
+    if "Orokin Reactor Blueprint" in rewards_string or "Orokin Catalyst Blueprint" in rewards_string:
+        message.channel.send("<@&749224566022471690>" + " Orokin stuff detected.")
+
+    await delete_message_after_delay(message, 0.5)
+    await delete_message_after_delay(await message.channel.send(rewards_string), 30)
 
 
 def sort_relic_rewards_by_rarity(relic):

@@ -2,8 +2,6 @@ import os  # Bot initialization
 import io  # Converting Bytes to Zip
 import sys  # Exception catching
 import mwu  # Personal module for warframe utilities
-import json  # Json parsing
-import lxml.html  # HTML Parsing
 import pandas  # Excel output
 import asyncio  # Sleep function
 import discord  # Discord bot commands
@@ -12,22 +10,22 @@ import requests  # API requests
 import pytesseract  # Image analysis
 from PIL import Image  # Image analysis
 from dotenv import load_dotenv  # Env module
+import xlsxwriter
+import jinja2
+
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-
 client = discord.Client()
 pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files (x86)\\TesseractOCR\\tesseract.exe'
 
 
-# GENERAL #
-async def DeleteMessageAfterDelay(message, delay):
+async def delete_message_after_delay(message, delay):
     await asyncio.sleep(delay)
     await message.delete()
 
 
-# PANDAS #
-def pandasExcelMapWarframeFrame(x):
+def pandas_excel_map_warframe_frame(x):
     if isinstance(x, int):
         if x > 20:
             return 'background-color: #95FF80'
@@ -37,7 +35,7 @@ def pandasExcelMapWarframeFrame(x):
             return 'background-color: transparent'
 
 
-def pandasExcelMapWarframeWeapon(x):
+def pandas_excel_map_warframe_weapon(x):
     if isinstance(x, int):
         if x > 20:
             return 'background-color: #95FF80'
@@ -62,145 +60,92 @@ async def on_message(message):
 
             if message.content.split()[0] == "bot":
                 if message.content.split()[1] == "help":
-                    await DeleteMessageAfterDelay(message, 0.5)
-                    await DeleteMessageAfterDelay(await message.channel.send(
+                    await delete_message_after_delay(message, 0.5)
+                    await delete_message_after_delay(await message.channel.send(
                         "General:\n"
                         "  bot help : Get all available bot commands\n"
                         "\n"
-                        "Warframe:\n"
-                        "  wf invasions : Get Invasions Data \n"
-                        "  wf cycles : Get World Cycles Data \n"
+                        "Warframe Status:\n"
+                        "  wf invasions : Get invasions data \n"
+                        "  wf baro : Get information about void trader\n"
+                        "  wf cycles : Get world cycles data \n"
+                        "\n"
+                        "Warframe Market:\n"
                         "  wf syndicate:\n"
-                        "      <syndicate> weapons: Get <syndicate> Weapons Buy/Sell Orders from Warframe Market \n"
-                        "      <syndicate> offerings: Get <syndicate> Augments and Arch parts"
-                        " Buy/Sell Orders from Warframe Market \n"
-                        "  wf market <weapon> : Get Weapon Buy/Sell Orders from Warframe Market\n"
+                        "      <syndicate> weapons: Get <syndicate> weapons buy/sell orders\n"
+                        "      <syndicate> offerings: Get <syndicate> augments and arch parts buy/sell orders\n"
+                        "  wf market <item> : Get item buy/sell orders\n"
+                        "\n"
+                        "Warframe Drops:\n"
                         "  wf relic <item_name>: Get list of relics which contain the item\n"), 30)
                 else:
-                    await DeleteMessageAfterDelay(await message.channel.send("No such Bot Command.\n"
-                                                                             "Use bot help for available commands."), 5)
+                    await delete_message_after_delay(await message.channel.send("No such Bot Command.\n"
+                                                                                "Use bot help for available commands."),
+                                                     5)
 
             elif message.content.split()[0] == "wf":
 
                 if message.content.split()[1] == "invasions":
-                    Req = requests.get('https://api.warframestat.us/pc/invasions')
-                    Content = Req.content
-                    RewardsString = ""
-                    OuterList = json.loads(Content)
-                    for Item in OuterList:
-                        if not Item["completed"]:
-                            RewardsString += str(Item["node"]) + "  " + str(round(Item["completion"], 1)) + "%\n"
-                            try:
-                                RewardData = Item["attackerReward"]["countedItems"][0]
-                                if RewardData["count"] > 1:
-                                    RewardsString += str(RewardData["count"]) + " x " + str(RewardData["key"])
-                                else:
-                                    RewardsString += str(RewardData["key"])
+                    await mwu.get_invasions(message)
 
-                                    RewardData = Item["defenderReward"]["countedItems"][0]
-                                    RewardsString += " and "
-
-                                if RewardData["count"] > 1:
-                                    RewardsString += str(RewardData["count"]) + " x " + str(RewardData["key"])
-                                else:
-                                    RewardsString += str(RewardData["key"])
-                                RewardsString += "\n"
-
-                            except:
-                                RewardData = Item["defenderReward"]["countedItems"][0]
-                                if RewardData["count"] > 1:
-                                    RewardsString += str(RewardData["count"]) + " x " + str(RewardData["key"])
-                                else:
-                                    RewardsString += str(RewardData["key"])
-                                RewardsString += "\n"
-                            RewardsString += "\n"
-
-                    if "Orokin Reactor Blueprint" in RewardsString or "Orokin Catalyst Blueprint" in RewardsString:
-                        message.channel.send("<@&749224566022471690>" + " Orokin stuff detected.")
-
-                    await DeleteMessageAfterDelay(message, 0.5)
-                    await DeleteMessageAfterDelay(await message.channel.send(RewardsString), 30)
+                elif message.content.split()[1] == "baro":
+                    await mwu.get_baro(message)
 
                 elif message.content.split()[1] == "cycles":
-                    ResultString = ""
-                    Req = requests.get('https://api.warframestat.us/pc/cetusCycle')
-                    Content = Req.content
-                    CetusData = json.loads(Content)
-                    try:
-
-                        if CetusData["state"] == "day" or CetusData["state"] == "night":
-                            ResultString += "Cetus: " + CetusData["state"].capitalize() + " (" + CetusData[
-                                "shortString"] + ")\n\n"
-                        else:
-                            ResultString += "Cetus Cycle Error."
-
-                        Req = requests.get('https://api.warframestat.us/pc/vallisCycle')
-                        Content = Req.content
-                        VallisData = json.loads(Content)
-                        if VallisData["state"] == "cold" or VallisData["state"] == "warm":
-                            ResultString += "Orb Vallis: " + VallisData["state"].capitalize() + " (" + VallisData[
-                                "shortString"] + ")\n\n"
-                        else:
-                            ResultString += "Orb Vallis Cycle Error."
-
-                        Req = requests.get('https://api.warframestat.us/pc/cambionCycle')
-                        Content = Req.content
-                        CambionData = json.loads(Content)
-                        if CambionData["active"] == "fass":
-                            ResultString += "Cambion Drift: " + CambionData["active"].capitalize() + " (??m to Vome)"
-                        elif CambionData["active"] == "vome":
-                            ResultString += "Cambion Drift: " + CambionData["active"].capitalize() + " (??m to Fass)"
-                        else:
-                            ResultString += "Cambion Drift Cycle Error."
-                    except:
-                        ResultString = "Something went wrong on Warframestat.us. Try again in a few moments."
-
-                    await DeleteMessageAfterDelay(message, 0.5)
-                    await DeleteMessageAfterDelay(await message.channel.send(ResultString), 10)
+                    await mwu.get_cycles(message)
 
                 elif message.content.split()[1] == "syndicate":
-                    Syndicates = ["meridian", "arbiters", "suda", "perrin", "veil", "loka"]
+                    syndicates = ["meridian", "arbiters", "suda", "perrin", "veil", "loka"]
                     if len(message.content.split()) > 2:
-                        if (message.content.split()[2] in Syndicates) and (len(message.content.split()) > 3):
+                        if (message.content.split()[2] in syndicates) and (len(message.content.split()) > 3):
 
                             if message.content.split()[3] == "weapons":
-                                ResultsString = await mwu.get_market_syndicate_weapons(
+                                results_string = await mwu.get_market_syndicate_weapons(
                                     "weapons_" + message.content.split()[2] + ".txt")
-                                await DeleteMessageAfterDelay(message, 0.5)
-                                await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 120)
+                                await delete_message_after_delay(message, 0.5)
+                                await delete_message_after_delay(await message.channel.send(results_string), 120)
+
                             elif message.content.split()[3] == "offerings":
-                                ResultsString = await mwu.get_market_syndicate_offerings(
-                                    "offerings_" + message.content.split()[2] + ".txt", message)
-                                await DeleteMessageAfterDelay(message, 0.5)
-                                await DeleteMessageAfterDelay(await message.channel.send(ResultsString), 120)
+                                if len(message.content.split()) > 4:
+                                    if message.content.split()[4] == "chat":
+                                        results_string = await mwu.get_market_syndicate_offerings(
+                                            "offerings_" + message.content.split()[2] + ".txt", message, "chat")
+                                        await delete_message_after_delay(await message.channel.send(results_string),
+                                                                         120)
+                                    await delete_message_after_delay(message, 0.5)
+                                else:
+                                    results_string = await mwu.get_market_syndicate_offerings(
+                                        "offerings_" + message.content.split()[2] + ".txt", message)
+                                    await delete_message_after_delay(message, 0.5)
+                                    await delete_message_after_delay(await message.channel.send(results_string), 120)
                             else:
-                                await DeleteMessageAfterDelay(message, 5)
-                                await DeleteMessageAfterDelay(await message.channel.send(
+                                await delete_message_after_delay(message, 5)
+                                await delete_message_after_delay(await message.channel.send(
                                     "No such Warframe command.\nCheck bot help for available commands"), 5)
                         else:
-                            await DeleteMessageAfterDelay(message, 0.5)
-                            await DeleteMessageAfterDelay(await message.channel.send("No such Syndicate"), 10)
+                            await delete_message_after_delay(message, 0.5)
+                            await delete_message_after_delay(await message.channel.send("No such Syndicate"), 10)
                     else:
-                        await DeleteMessageAfterDelay(message, 0.5)
-                        await DeleteMessageAfterDelay(
+                        await delete_message_after_delay(message, 0.5)
+                        await delete_message_after_delay(
                             await message.channel.send("Wrong input. use wf syndicate <syndicate> <action> format."),
                             10)
 
                 elif message.content.split()[1] == "market":
                     if len(message.content.split()) > 2:
-                        await DeleteMessageAfterDelay(message, 0.5)
+                        await delete_message_after_delay(message, 0.5)
                         try:
-                            Embed, Buys, Sells = await mwu.get_market_orders(message.content.split()[2])
-                            await DeleteMessageAfterDelay(await message.channel.send(embed=Embed), 60)
+                            embed, buys, sells = await mwu.get_market_orders(message.content.split()[2])
+                            await delete_message_after_delay(await message.channel.send(embed=embed), 60)
                         except:
-                            await DeleteMessageAfterDelay(await message.channel.send(str(sys.exc_info()) + " Error!"),
-                                                          10)
+                            await delete_message_after_delay(
+                                await message.channel.send(str(sys.exc_info()) + " Error!"), 10)
                     else:
-                        await DeleteMessageAfterDelay(
+                        await delete_message_after_delay(
                             await message.channel.send("Error! Please use format: wf market <item>"), 10)
 
                 elif message.content.split()[1] == "primecheck":
-                    await DeleteMessageAfterDelay(message, 0.5)
+                    await delete_message_after_delay(message, 0.5)
                     if message.attachments:
                         att = message.attachments
                         zippedimgs = zipfile.ZipFile(io.BytesIO(requests.get(att[0].url).content), "r")
@@ -213,11 +158,11 @@ async def on_message(message):
                         single_inventory_space_size_y = 31
                         inventory_offset_x = 97
                         inventory_offset_y = 199
-                        x_pos = inventory_offset_x
-                        y_pos = inventory_offset_y
+                        # x_pos = inventory_offset_x
+                        # y_pos = inventory_offset_y
 
                         images = []
-                        ImageTextData = []
+                        image_text_data = []
                         primes = {}
                         warframes = []
                         dictionary = {}
@@ -226,10 +171,10 @@ async def on_message(message):
                         warframes_array = []
                         weapons_array = []
 
-                        top_sell_price = 0
-                        top_sell_player = ""
-                        top_buy_price = 0
-                        top_buy_player = ""
+                        # top_sell_price = 0
+                        # top_sell_player = ""
+                        # top_buy_price = 0
+                        # top_buy_player = ""
 
                         top_warframe_sell_price_array = []
                         top_warframe_sell_player_array = []
@@ -295,20 +240,6 @@ async def on_message(message):
                             for warframe in warframes_file:
                                 warframes.append(warframe.rstrip())
 
-                            '''    
-                            for image in whiteListColorsImages:
-                                testImg = Image.open("Warframe/" + image)
-                                for i in range(testImg.size[0]):
-                                    for j in range(testImg.size[1]):
-                                        if testImg.getpixel((i, j)) != (255, 255, 255):
-                                        #r, g, b = testImg.getpixel((i,j))
-                                            #print(str(r) + " " + str(g) + " " + str(b))
-                                            if testImg.getpixel((i, j)) not in whiteListColors:
-                                                whiteListColors.append(testImg.getpixel((i, j)))
-        
-                            print("Whitelist created.(Size: " + str(len(whiteListColors)) + ")")
-                            '''
-
                             for img in images:
                                 y_pos = inventory_offset_y
                                 for i in range(4):
@@ -367,7 +298,7 @@ async def on_message(message):
                                             cropped_img_string.split('_')[
                                                 cropped_img_string.split('_').index("blueprint") - 1] != "collar":
                                         cropped_img_string = cropped_img_string.replace('_blueprint', '')
-                                ImageTextData.append(cropped_img_string)
+                                image_text_data.append(cropped_img_string)
                                 cropped_bw_imagecounter = cropped_bw_imagecounter + 1
                                 print("Reading text from cropped B&W images...(" + str(cropped_bw_imagecounter) +
                                       "/" + str(len(cropped_images)) + ")")
@@ -381,46 +312,46 @@ async def on_message(message):
                             await primecheckmessage.edit(content="Checking for sets...")
 
                             repeats_num = 0
-                            repeats_name = ImageTextData[0].split('_')[0]
+                            repeats_name = image_text_data[0].split('_')[0]
 
-                            for i in range(len(ImageTextData)):
-                                if ImageTextData[i].split('_')[0].capitalize() in primes:
-                                    print(ImageTextData[i].split('_')[0] + " " + repeats_name)
-                                    if ImageTextData[i].split('_')[0] == repeats_name:
+                            for i in range(len(image_text_data)):
+                                if image_text_data[i].split('_')[0].capitalize() in primes:
+                                    print(image_text_data[i].split('_')[0] + " " + repeats_name)
+                                    if image_text_data[i].split('_')[0] == repeats_name:
                                         repeats_num += 1
                                     else:
                                         print("else:" + primes[repeats_name.capitalize()] + " " + str(repeats_num))
                                         if primes[repeats_name.capitalize()] == str(repeats_num):
                                             if repeats_name.capitalize() == "Dual":
-                                                ImageTextData.insert(i, "dual_kamas_prime_set")
+                                                image_text_data.insert(i, "dual_kamas_prime_set")
                                             elif repeats_name.capitalize() == "Silva":
-                                                ImageTextData.insert(i, "silva_and_aegis_prime_set")
+                                                image_text_data.insert(i, "silva_and_aegis_prime_set")
                                             elif repeats_name.capitalize() == "Nami":
-                                                ImageTextData.insert(i, "nami_skyla_prime_set")
+                                                image_text_data.insert(i, "nami_skyla_prime_set")
                                             else:
-                                                ImageTextData.insert(i, repeats_name + "_prime_set")
-                                        repeats_name = ImageTextData[i].split('_')[0]
+                                                image_text_data.insert(i, repeats_name + "_prime_set")
+                                        repeats_name = image_text_data[i].split('_')[0]
                                         repeats_num = 1
 
                             print()
                             print("Getting market orders...")
                             await primecheckmessage.edit(
-                                content="Getting market orders... (0/" + str(len(ImageTextData)) + ")")
+                                content="Getting market orders... (0/" + str(len(image_text_data)) + ")")
 
-                            for i in range(len(ImageTextData)):
+                            for i in range(len(image_text_data)):
                                 try:
-                                    print(str(i + 1) + "/" + str(len(ImageTextData)) + "  " + str(ImageTextData[i]))
+                                    print(str(i + 1) + "/" + str(len(image_text_data)) + "  " + str(image_text_data[i]))
                                     await primecheckmessage.edit(
                                         content="Getting market orders... (" + str(i + 1) + "/" + str(
-                                            len(ImageTextData)) + ")")
-                                    Embed, BuysReq, SellsReq = await mwu.get_market_orders(ImageTextData[i])
+                                            len(image_text_data)) + ")")
+                                    embed, buys_req, sells_req = await mwu.get_market_orders(image_text_data[i])
                                     await asyncio.sleep(0.3)
                                     top_buy_price = 0
                                     top_buy_player = "< None >"
                                     top_sell_price = 0
                                     top_sell_player = "< None >"
-                                    Buys, BRequest = BuysReq
-                                    for player, (price, rank) in Buys:
+                                    buys, b_request = buys_req
+                                    for player, (price, rank) in buys:
                                         if top_buy_price == 0:
                                             top_buy_price = price
                                             top_buy_player = player
@@ -428,8 +359,8 @@ async def on_message(message):
                                             top_buy_price = price
                                             top_buy_player = player
 
-                                    Sells, SRequest = SellsReq
-                                    for player, (price, rank) in Sells:
+                                    sells, s_request = sells_req
+                                    for player, (price, rank) in sells:
                                         if top_sell_price == 0:
                                             top_sell_price = price
                                             top_sell_player = player
@@ -437,28 +368,28 @@ async def on_message(message):
                                             top_sell_price = price
                                             top_sell_player = player
 
-                                    if str(ImageTextData[i].split('_')[0]) in warframes:
-                                        warframes_array.append(ImageTextData[i])
+                                    if str(image_text_data[i].split('_')[0]) in warframes:
+                                        warframes_array.append(image_text_data[i])
                                         top_warframe_buy_price_array.append(top_buy_price)
                                         top_warframe_buy_player_array.append(top_buy_player)
                                         top_warframe_sell_price_array.append(top_sell_price)
                                         top_warframe_sell_player_array.append(top_sell_player)
                                     else:
-                                        weapons_array.append(ImageTextData[i])
+                                        weapons_array.append(image_text_data[i])
                                         top_weapon_buy_price_array.append(top_buy_price)
                                         top_weapon_buy_player_array.append(top_buy_player)
                                         top_weapon_sell_price_array.append(top_sell_price)
                                         top_weapon_sell_player_array.append(top_sell_player)
                                 except:
-                                    print("Encountered Error with: " + str(ImageTextData[i]) + str(sys.exc_info()))
-                                    if ImageTextData[i].split('_')[0] in warframes:
-                                        warframes_array.append(ImageTextData[i])
+                                    print("Encountered Error with: " + str(image_text_data[i]) + str(sys.exc_info()))
+                                    if image_text_data[i].split('_')[0] in warframes:
+                                        warframes_array.append(image_text_data[i])
                                         top_warframe_buy_price_array.append('-')
                                         top_warframe_buy_player_array.append('-')
                                         top_warframe_sell_price_array.append('-')
                                         top_warframe_sell_player_array.append('-')
                                     else:
-                                        weapons_array.append(ImageTextData[i])
+                                        weapons_array.append(image_text_data[i])
                                         top_weapon_buy_price_array.append('-')
                                         top_weapon_buy_player_array.append('-')
                                         top_weapon_sell_price_array.append('-')
@@ -469,13 +400,6 @@ async def on_message(message):
                         except:
                             print("Error! ", str(sys.exc_info()) + " " + str(sys.exc_info()[2].tb_lineno))
 
-                        '''
-                        print("PartName: " + str(len(ImageTextData)))
-                        print("SellPlayer: " + str(len(TopSellPlayerArray)))
-                        print("SellPrice: " + str(len(TopSellPriceArray)))
-                        print("BuyPlayer: " + str(len(TopBuyPlayerArray)))
-                        print("BuyPrice: " + str(len(TopBuyPriceArray)))
-                        '''
                         print()
                         print("Creating results Excel file...")
                         await primecheckmessage.edit(content="Creating results Excel file...")
@@ -508,14 +432,10 @@ async def on_message(message):
                                                'Weapon Buy Player': top_weapon_buy_player_array})
 
                         writer = pandas.ExcelWriter("PrimeResults.xlsx", engine='xlsxwriter')
-                        '''
-                        df = df.style.applymap(
-                            lambda x: 'background-color: #95FF80' if x > 20 else 'background-color: transparent',
-                            subset=['Frame Sell Price'])
-                        '''
+
                         df = df.style \
-                            .applymap(pandasExcelMapWarframeFrame, subset=['Frame Sell Price']) \
-                            .applymap(pandasExcelMapWarframeWeapon, subset=['Weapon Sell Price'])
+                            .applymap(pandas_excel_map_warframe_frame, subset=['Frame Sell Price']) \
+                            .applymap(pandas_excel_map_warframe_weapon, subset=['Weapon Sell Price'])
                         df.to_excel(writer, sheet_name="Primes", engine='openpyxl', index=False)
                         worksheet = writer.sheets['Primes']
                         worksheet.set_column('A:A', 27)  # Warframe Name
@@ -546,8 +466,8 @@ async def on_message(message):
 
                         await primecheckmessage.edit(content="Prime check complete.")
                         excelmessage = await message.channel.send(file=discord.File("PrimeResults.xlsx"))
-                        await DeleteMessageAfterDelay(primecheckmessage, 5)
-                        await DeleteMessageAfterDelay(excelmessage, 60)
+                        await delete_message_after_delay(primecheckmessage, 5)
+                        await delete_message_after_delay(excelmessage, 60)
 
                 elif message.content.split()[1] == "relic":
                     if len(message.content.split()) == 3:
@@ -555,19 +475,16 @@ async def on_message(message):
                         result_string = mwu.find_reward_relics(message.content.split()[2], relic_rewards_list)
                         if len(result_string) == 0:
                             result_string = "Could not find relics for '" + message.content.split()[2] + "'"
-
-                        await DeleteMessageAfterDelay(message, 0.5)
-                        await DeleteMessageAfterDelay(await message.channel.send(result_string), 20)
-
+                        await delete_message_after_delay(message, 0.5)
+                        await delete_message_after_delay(await message.channel.send(result_string), 20)
                     else:
-                        await DeleteMessageAfterDelay(message, 0.5)
-                        await DeleteMessageAfterDelay(
+                        await delete_message_after_delay(message, 0.5)
+                        await delete_message_after_delay(
                             await message.channel.send("Wrong input. Please use 'wf relic <item_name>' format."), 10)
 
                 else:
-                    await DeleteMessageAfterDelay(
+                    await delete_message_after_delay(
                         await message.channel.send("No such Warframe command.\n"
                                                    "Check bot help for available commands"), 5)
-
 
 client.run(TOKEN)
